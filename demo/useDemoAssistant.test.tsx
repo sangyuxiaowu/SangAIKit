@@ -83,6 +83,51 @@ it('calls a configured image provider and saves the result in the conversation',
   } finally { await act(async () => root.unmount()); }
 });
 
+it('orders reasoning and tool activity by response items across a turn', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  let requestCount = 0;
+  vi.stubGlobal('fetch', vi.fn(async () => {
+    requestCount++;
+    const output = requestCount === 1
+      ? [{ type: 'reasoning', id: 'reasoning-1', summary: [] },
+        { type: 'function_call', call_id: 'call-1', name: 'read_workspace', arguments: '{}' },
+        { type: 'reasoning', id: 'reasoning-2', summary: [] }]
+      : [{ type: 'reasoning', id: 'reasoning-3', summary: [{ type: 'summary_text', text: '完成思考' }] },
+        { type: 'message', id: 'message-1', role: 'assistant', content: [{ type: 'output_text', text: '完成' }] }];
+    const deltas = requestCount === 1
+      ? [{ type: 'response.reasoning_summary_text.delta', item_id: 'reasoning-1', delta: '调用前' },
+        { type: 'response.reasoning_summary_text.delta', item_id: 'reasoning-2', delta: '调用后' }]
+      : [];
+    const events = [...deltas, { type: 'response.completed', response: { status: 'completed', output } }];
+    return new Response(events.map(event => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } });
+  }));
+  const endpoint = createEndpoint('openai');
+  endpoint.endpoint = 'https://example.com/v1';
+  endpoint.apiKey = 'test';
+  const config: AiConfig = { endpoints: [endpoint], activeSelection: { endpointId: endpoint.id, modelId: endpoint.models[0].id }, systemPrompt: '' };
+  let assistant: ReturnType<typeof useDemoAssistant>;
+  function Harness() { assistant = useDemoAssistant(config); return null; }
+  const root = createRoot(document.createElement('div'));
+  try {
+    await act(async () => { root.render(<Harness />); });
+    await act(async () => { await assistant!.send('继续'); });
+    expect(assistant!.entries[1].activity).toEqual([
+      { id: 'reasoning-1', type: 'reasoning', text: '调用前' },
+      { id: 'call-1', type: 'tool', toolId: 'call-1' },
+      { id: 'reasoning-2', type: 'reasoning', text: '调用后' },
+      { id: 'reasoning-3', type: 'reasoning', text: '完成思考' },
+      { id: 'message-1', type: 'text', text: '完成' }
+    ]);
+    expect(assistant!.sessions[0].responseItems).toHaveLength(7);
+    await act(async () => root.unmount());
+    const reopened = createRoot(document.createElement('div'));
+    try {
+      await act(async () => { reopened.render(<Harness />); });
+      expect(assistant!.entries[1].activity?.map(item => item.type)).toEqual(['reasoning', 'tool', 'reasoning', 'reasoning', 'text']);
+    } finally { await act(async () => reopened.unmount()); }
+  } finally { await act(async () => root.unmount()); }
+});
+
 it('preserves response history across turns and only allows immediate redo', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const requests: Record<string, unknown>[] = [];

@@ -29,7 +29,7 @@ export interface ResponsesConfig {
   instructions?: string;
   maxOutputTokens?: number;
   reasoningEffort?: ReasoningEffort;
-  onReasoning?: (text: string) => void;
+  onReasoning?: (text: string, itemId?: string) => void;
   tools?: ResponsesTool[];
   builtIn?: BuiltInToolOptions;
   onTool?: (tool: ToolEvent) => void;

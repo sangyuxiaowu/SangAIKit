@@ -39,8 +39,7 @@ export interface ChatEntry {
   role: 'user' | 'assistant';
   content: string;
   responseItemCount?: number;
-  activity?: ({ id: string; type: 'text'; text: string } | { id: string; type: 'tool'; toolId: string })[];
-  reasoning?: string;
+  activity?: ({ id: string; type: 'text'; text: string } | { id: string; type: 'reasoning'; text: string } | { id: string; type: 'tool'; toolId: string })[];
   tools?: ToolEvent[];
   continuable?: boolean;
   images?: SessionImage[];

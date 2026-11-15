@@ -22,7 +22,7 @@ export type AssistantRunner = (messages: ChatEntry[], events: {
   history: unknown[];
   onHistory: (items: unknown[]) => void;
   onText: (text: string) => void;
-  onReasoning: (text: string) => void;
+  onReasoning: (text: string, itemId?: string) => void;
   onTool: (tool: ToolEvent) => void;
   onUsage: (request: RequestUsage) => void;
   loadImage: (imageId: string) => Promise<Blob | null>;
@@ -31,6 +31,35 @@ export type AssistantRunner = (messages: ChatEntry[], events: {
 
 const newSession = (): AssistantSession => ({ id: crypto.randomUUID(), title: '新对话', updatedAt: Date.now(), entries: [], requests: [] });
 const initialSnapshot = (): AssistantSnapshot => { const session = newSession(); return { sessions: [session], activeSessionId: session.id }; };
+
+function responseActivity(items: unknown[], activity: NonNullable<ChatEntry['activity']>): NonNullable<ChatEntry['activity']> {
+  const result: NonNullable<ChatEntry['activity']> = [];
+  const reasoning = activity.filter(item => item.type === 'reasoning');
+  const usedReasoning = new Set<string>();
+  const textParts = (value: unknown) => Array.isArray(value)
+    ? value.flatMap(part => part && typeof part === 'object' && 'text' in part && typeof part.text === 'string' ? [part.text] : []).join('')
+    : typeof value === 'string' ? value : '';
+  for (const [index, value] of items.entries()) {
+    if (!value || typeof value !== 'object') continue;
+    const item = value as { id?: unknown; type?: unknown; role?: unknown; call_id?: unknown; content?: unknown; summary?: unknown };
+    if (item.type === 'reasoning') {
+      const id = typeof item.id === 'string' ? item.id : `reasoning-${index}`;
+      const streamed = reasoning.find(part => part.id === id && !usedReasoning.has(part.id))
+        || reasoning.find(part => !usedReasoning.has(part.id) && !items.some(candidate => candidate && typeof candidate === 'object' && 'id' in candidate && candidate.id === part.id));
+      if (streamed) usedReasoning.add(streamed.id);
+      const text = streamed?.text || textParts(item.summary) || textParts(item.content);
+      if (text) result.push({ id, type: 'reasoning', text });
+    } else if (item.type === 'function_call' && typeof item.call_id === 'string') {
+      result.push({ id: item.call_id, type: 'tool', toolId: item.call_id });
+    } else if (item.role === 'assistant' || item.type === 'message' && item.role !== 'user') {
+      const text = textParts(item.content);
+      if (text) result.push({ id: typeof item.id === 'string' ? item.id : `message-${index}`, type: 'text', text });
+    }
+  }
+  if (activity.some(item => item.type === 'reasoning') && !items.some(value => value && typeof value === 'object' && 'type' in value && value.type === 'reasoning')) return activity;
+  if (!result.some(item => item.type === 'text')) result.push(...activity.filter(item => item.type === 'text'));
+  return result;
+}
 
 export function useAssistant(runner: AssistantRunner, storage: AssistantStorage): AssistantController {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
@@ -153,7 +182,8 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
         signal: abort.signal,
         history: historyBefore,
         onHistory: items => { if (active() && !abort.signal.aborted) modifySession(id, session => ({ ...session, responseItems: items,
-          entries: session.entries.map(entry => entry.id === response.id ? { ...entry, responseItemCount: items.length } : entry)
+          entries: session.entries.map(entry => entry.id === response.id ? { ...entry, responseItemCount: items.length,
+            activity: responseActivity(items.slice(items.map(item => Boolean(item && typeof item === 'object' && 'role' in item && item.role === 'user')).lastIndexOf(true) + 1), entry.activity || []) } : entry)
         })); },
         onUsage: request => { if (active()) modifySession(id, session => {
           const requests = [...session.requests.filter(item => item.id !== request.id), { ...request, entryId: response.id }];
@@ -185,7 +215,13 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
           else activity.push({ id: crypto.randomUUID(), type: 'text', text });
           return { ...entry, content: entry.content + text, activity };
         }); },
-        onReasoning: text => { if (active() && !abort.signal.aborted) updateResponse(entry => ({ ...entry, reasoning: (entry.reasoning || '') + text })); },
+        onReasoning: (text, itemId) => { if (active() && !abort.signal.aborted) updateResponse(entry => {
+          const activity = [...(entry.activity || [])];
+          const last = activity.at(-1);
+          if (last?.type === 'reasoning' && (!itemId || last.id === itemId)) activity[activity.length - 1] = { ...last, text: last.text + text };
+          else activity.push({ id: itemId || crypto.randomUUID(), type: 'reasoning', text });
+          return { ...entry, activity };
+        }); },
         onTool: tool => { if (active() && !abort.signal.aborted) updateResponse(entry => ({ ...entry,
           tools: [...(entry.tools || []).filter(item => item.id !== tool.id), tool],
           activity: entry.activity?.some(item => item.type === 'tool' && item.toolId === tool.id) ? entry.activity : [...(entry.activity || []), { id: tool.id, type: 'tool', toolId: tool.id }]

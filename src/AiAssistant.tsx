@@ -109,6 +109,7 @@ export default function AiAssistant({
         const text = event.text.replace(/[#*`\n]/g, ' ').replace(/\s+/g, ' ').trim().slice(-64);
         return text ? [text] : [];
       }
+      if (event.type === 'reasoning') return [];
       const tool = lastAssistantEntry?.tools?.find(item => item.id === event.toolId);
       if (!tool) return [];
       const name = toolLabels[tool.name]?.[english ? 1 : 0] || tool.name;
@@ -476,16 +477,14 @@ export default function AiAssistant({
                               {entry.role === 'user' ? label('你', 'You') : title}
                             </span>
                           </div>
-                          {entry.reasoning && (
-                            <details className="cf-ai-reasoning">
-                              <summary>
-                                <Brain size={13} />
-                                {label('思考过程', 'Reasoning')}
-                              </summary>
-                              <p>{entry.reasoning}</p>
-                            </details>
-                          )}
                           {activity.map(item => {
+                            if (item.type === 'reasoning') {
+                              if (!item.text.trim()) return null;
+                              return <details className="cf-ai-reasoning" key={item.id}>
+                                <summary><Brain size={13} />{label('思考过程', 'Reasoning')}</summary>
+                                <p>{item.text}</p>
+                              </details>;
+                            }
                             if (item.type === 'text') {
                               if (!item.text.trim()) return null;
                               return (

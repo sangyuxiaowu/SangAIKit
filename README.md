@@ -109,6 +109,8 @@ const runner: AssistantRunner = async (messages, events) => {
 
 将 `assistant`、`useFloatingPanel` 的返回值、当前模型、文案和各插槽传给 `AiAssistant`。对接服务端 SSE、工具、图片或 Responses 原生历史时，分别调用 `events.onText`、`onTool`、`loadImage` / `saveImage` 和 `onHistory`；示例仅展示普通文本，完整用法参考演示。上例会将消息明文写入 localStorage，不适合敏感数据；图片需要另行提供 `AssistantStorage.images`，可使用 `createIndexedDbImageStore`。
 
+思考内容与工具调用按 `responseItems` 的顺序显示。使用 `useAssistant` 和 `createResponsesSender` 的宿主无需额外调整；自定义 runner 应将思考增量传给 `events.onReasoning(text, itemId)`，并通过 `events.onHistory` 提供 Responses 原生历史。自行构造 `AssistantController` 的宿主须在每条助手消息的 `activity` 中按顺序提供 `reasoning`、`tool` 和 `text` 项，思考项格式为 `{ id, type: 'reasoning', text }`。
+
 浮窗与配置中心通过各自的 `theme="light"`、`"dark"` 或 `"system"` 切换基础主题。宿主可在祖先元素提供 `--sang-ai-accent`；部分原有状态颜色和宿主注入面板仍未统一为主题变量。
 
 ## Git 引用
