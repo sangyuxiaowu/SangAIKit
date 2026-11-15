@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import type { AiEndpointConfig, AiModelConfig } from './settingsTypes';
 import { getSelectedReasoningEffort } from './ModelControls';
+import { reasoningRequestParams } from './openai';
 
 export async function testEndpointConnection(endpoint: AiEndpointConfig, model: AiModelConfig): Promise<string> {
   if (!model.modelId.trim()) throw new Error('模型 ID 不能为空。');
@@ -20,7 +21,7 @@ export async function testEndpointConnection(endpoint: AiEndpointConfig, model: 
     instructions: 'this is a test',
     input: [{ role: 'user', content: 'Say OK' }],
     max_output_tokens: model.thinkingAvailable && model.thinkingEnabled ? Math.min(model.maxTokens, 1024) : 16,
-    ...(model.thinkingAvailable ? { reasoning: { effort: model.thinkingEnabled ? getSelectedReasoningEffort(model) : 'none' } } : {}),
+    ...reasoningRequestParams(model.modelId, model.thinkingAvailable ? (model.thinkingEnabled ? getSelectedReasoningEffort(model) : 'none') : undefined),
     store: false,
     stream: false
   });

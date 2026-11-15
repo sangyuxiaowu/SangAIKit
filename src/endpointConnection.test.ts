@@ -35,6 +35,14 @@ test('tests an endpoint using the current thinking state and no tools or storage
     endpoint.models[0].thinkingEnabled = false;
     await testEndpointConnection(endpoint, endpoint.models[0]);
     expect(requestBody.reasoning).toEqual({ effort: 'none' });
+    endpoint.models[0].modelId = 'Agnes-3.0-flash';
+    await testEndpointConnection(endpoint, endpoint.models[0]);
+    expect(requestBody.chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(requestBody.reasoning).toBeUndefined();
+    endpoint.models[0].thinkingEnabled = true;
+    await testEndpointConnection(endpoint, endpoint.models[0]);
+    expect(requestBody.reasoning).toEqual({ effort: 'high' });
+    expect(requestBody.chat_template_kwargs).toBeUndefined();
   } finally { globalThis.fetch = originalFetch; }
 });
 

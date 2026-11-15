@@ -43,6 +43,12 @@ export interface ResponsesConfig {
   onUsage?: (request: RequestUsage) => void;
 }
 
+export function reasoningRequestParams(model: string, effort?: ReasoningEffort) {
+  if (!effort) return {};
+  if (effort === 'none' && model.toLowerCase().startsWith('agnes')) return { chat_template_kwargs: { enable_thinking: false } };
+  return { reasoning: { effort } };
+}
+
 async function prepareInput(input: ResponseInputItem[], supportsVision: boolean, loadImage?: ResponsesConfig['loadImage']): Promise<ResponseInputItem[]> {
   const copy = structuredClone(input) as unknown as Record<string, unknown>[];
   const hydrate = async (parts: unknown[]) => Promise.all(parts.map(async part => {
@@ -103,7 +109,7 @@ export function createResponsesSender(config: ResponsesConfig): ChatSender {
             model: config.model, instructions, input: await prepareInput(history, config.supportsVision !== false, config.loadImage ?? config.builtIn?.loadImage), stream: true as const, store: false,
             ...(tools.length ? { tools: tools.map(tool => ({ type: 'function' as const, name: tool.name, description: tool.description, parameters: tool.parameters, strict: false })) } : {}),
             ...(url.hostname === 'api.openai.com' ? { include: ['reasoning.encrypted_content' as const] } : {}),
-            ...(config.reasoningEffort ? { reasoning: { effort: config.reasoningEffort } } : {}),
+            ...reasoningRequestParams(config.model, config.reasoningEffort),
             ...(config.maxOutputTokens ? { max_output_tokens: config.maxOutputTokens } : {})
           };
           config.onRequest?.({ endpoint: `${url.toString().replace(/\/$/, '')}/responses`, body: requestBody });

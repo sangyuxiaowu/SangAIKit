@@ -23,6 +23,31 @@ test('sends message history and streams text without storing the response', asyn
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('uses Agnes thinking parameters only when thinking is disabled', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> = {};
+  globalThis.fetch = Object.assign(async (_url: string | URL | Request, init?: RequestInit) => {
+    requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response('event: response.completed\ndata: {"type":"response.completed","response":{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
+  }, { preconnect: originalFetch.preconnect }) as typeof fetch;
+  try {
+    for (const model of ['agnes-3.0-flash', 'AgNeS-custom']) {
+      await createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model, reasoningEffort: 'none' })([], new AbortController().signal, () => {});
+      expect(requestBody.chat_template_kwargs).toEqual({ enable_thinking: false });
+      expect(requestBody.reasoning).toBeUndefined();
+    }
+    await createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model: 'agnes-3.0-flash', reasoningEffort: 'medium' })([], new AbortController().signal, () => {});
+    expect(requestBody.reasoning).toEqual({ effort: 'medium' });
+    expect(requestBody.chat_template_kwargs).toBeUndefined();
+    await createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model: 'other-agnes', reasoningEffort: 'none' })([], new AbortController().signal, () => {});
+    expect(requestBody.reasoning).toEqual({ effort: 'none' });
+    expect(requestBody.chat_template_kwargs).toBeUndefined();
+    await createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model: 'agnes-3.0-flash' })([], new AbortController().signal, () => {});
+    expect(requestBody.reasoning).toBeUndefined();
+    expect(requestBody.chat_template_kwargs).toBeUndefined();
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('reports the exact Responses endpoint and request body without exposing credentials', async () => {
   const originalFetch = globalThis.fetch;
   let actualBody: Record<string, unknown> = {};
