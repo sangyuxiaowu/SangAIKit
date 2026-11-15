@@ -37,7 +37,7 @@ import '../generated/sang-ai-utilities.css';
 import './assistant.css';
 
 export default function AiAssistant({
-  assistant, floating, language, theme = 'dark', title, emptyTitle, emptyDescription, contextTitle, contextMeta, canInsertImage,
+  assistant, floating, language, theme = 'dark', title, emptyTitle, emptyDescription, contextTitle, contextMeta, imageInsertAction, classifyGalleryImage,
   quickSnippets, features: featureSettings, onFork, active, imageToolsEnabled, toolLabels = {}, loadImage, createImageUpload, imageModelForTool,
   sumUsage, renderMarkdown, renderUsage, renderModelControls, renderSettings,
   open: propOpen,
@@ -380,16 +380,15 @@ export default function AiAssistant({
               </div>
             )}
 
-            {/* 上下文画布状态栏 */}
-            <div className="cf-ai-context">
+            {(contextTitle || contextMeta) && <div className="cf-ai-context">
               <span className="cf-ai-dot" />
               <span title={contextTitle}>
-                {contextTitle || label('未打开项目', 'No project open')}
+                {contextTitle}
               </span>
               <span className="cf-ai-meta">
                 {contextMeta}
               </span>
-            </div>
+            </div>}
 
             {/* 消息区域 */}
             <div className="cf-ai-messages-region">
@@ -408,7 +407,8 @@ export default function AiAssistant({
                   activeId={assistant.activeSessionId}
                   disabled={controlsDisabled}
                   english={english}
-                  canInsertImage={canInsertImage}
+                  imageInsertAction={imageInsertAction}
+                  classifyGalleryImage={classifyGalleryImage}
                   onNew={async () => {
                     await assistant.newSession();
                     setShowSessions(false);
@@ -420,7 +420,7 @@ export default function AiAssistant({
                   onRename={assistant.renameSession}
                   onDelete={assistant.deleteSession}
                   onDeleteImages={assistant.deleteImages}
-                  onInsertImage={assistant.insertImageToCanvas}
+                  onInsertImage={assistant.insertImage}
                   onLoadImage={loadImage}
                 />
               ) : (

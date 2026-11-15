@@ -1,6 +1,6 @@
 import type { CSSProperties, Dispatch, PointerEventHandler, ReactNode, SetStateAction } from 'react';
 import type { ChatSession as SessionSummary, SessionImage, SessionTool } from './sessionTypes';
-import type { InsertGalleryImageInput } from './SessionList';
+import type { GalleryImageClassifier, GalleryInsertAction, InsertGalleryImageInput } from './SessionList';
 import type { AssistantTheme } from './useResolvedTheme';
 import type { AiFeatures } from './features';
 
@@ -79,7 +79,7 @@ export interface AssistantController {
   renameSession: (id: string, title: string) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
   deleteImages?: (images: { sessionId: string; imageId: string }[]) => Promise<boolean>;
-  insertImageToCanvas?: (image: InsertGalleryImageInput) => Promise<unknown>;
+  insertImage?: (image: InsertGalleryImageInput) => Promise<unknown>;
   reloadConfig: () => Promise<void>;
   clearExecutionError: () => void;
   retry: () => Promise<void>;
@@ -121,7 +121,8 @@ export interface AssistantViewProps {
   emptyDescription: string;
   contextTitle?: string;
   contextMeta?: string;
-  canInsertImage?: boolean;
+  imageInsertAction?: GalleryInsertAction;
+  classifyGalleryImage?: GalleryImageClassifier;
   quickSnippets: string[];
   features?: Partial<AiFeatures>;
   onFork?: (event: AssistantForkEvent) => void;

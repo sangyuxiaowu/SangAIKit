@@ -1172,7 +1172,6 @@ const ToggleSwitch: React.FC<{
             {/* TAB: 系统提示词 */}
             {tab === 'prompt' && (
               <div className="animate-in fade-in-50 duration-200 slide-in-from-bottom-1 space-y-6">
-                {/* 封面设计系统提示词 */}
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
                     <div>
@@ -1283,8 +1282,8 @@ const ToggleSwitch: React.FC<{
                     <input
                       value={newSnippet}
                       placeholder={label(
-                        '输入新的快捷短语，例如：将主标题更换为科技感艺术字并居中...',
-                        'Enter new prompt, e.g. center all text layers and enhance typography...'
+                        '输入新的快捷短语，例如：总结主要内容...',
+                        'Enter a quick prompt, e.g. summarize the main points...'
                       )}
                       onChange={e => setNewSnippet(e.target.value)}
                       onKeyDown={e => {

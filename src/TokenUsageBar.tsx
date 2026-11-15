@@ -10,7 +10,7 @@ export interface UsageSummary {
   reservedOutput: number;
   percent: number;
   requestCount: number;
-  breakdown: { systemAndTools: number; canvasAndToolData: number; historyMessages: number; currentTurnEstimate: number; contextWindow: number; safetyLevel: 'safe' | 'warning' | 'danger' };
+  breakdown: { systemAndTools: number; toolData: number; historyMessages: number; currentTurnEstimate: number; contextWindow: number; safetyLevel: 'safe' | 'warning' | 'danger' };
   performance: { turnDurationMs?: number; turnTokensPerSec?: number; avgTokensPerSec?: number };
 }
 
@@ -117,7 +117,7 @@ export default function TokenUsageBar({ usage, model, busy, english }: Props) {
   // 计算多色分段比例 (以总窗口为基准)
   const windowSize = usage.breakdown.contextWindow || 128000;
   const sysPct = Math.min(100, (usage.breakdown.systemAndTools / windowSize) * 100);
-  const canvasPct = Math.min(100, (usage.breakdown.canvasAndToolData / windowSize) * 100);
+  const toolPct = Math.min(100, (usage.breakdown.toolData / windowSize) * 100);
   const historyPct = Math.min(100, (usage.breakdown.historyMessages / windowSize) * 100);
   const turnPct = Math.min(100, (usage.breakdown.currentTurnEstimate / windowSize) * 100);
 
@@ -232,12 +232,12 @@ export default function TokenUsageBar({ usage, model, busy, english }: Props) {
                   title={`${label('系统与工具定义', 'System & Tools')}: ${format(usage.breakdown.systemAndTools)} tokens (${sysPct.toFixed(1)}%)`}
                 />
               )}
-              {/* 画布图层与工具数据 */}
-              {canvasPct > 0 && (
+              {/* 工具数据 */}
+              {toolPct > 0 && (
                 <div
                   className="h-full bg-emerald-400 transition-all duration-300"
-                  style={{ width: `${Math.max(1, canvasPct)}%` }}
-                  title={`${label('工具数据', 'Tool Data')}: ${format(usage.breakdown.canvasAndToolData)} tokens (${canvasPct.toFixed(1)}%)`}
+                  style={{ width: `${Math.max(1, toolPct)}%` }}
+                  title={`${label('工具数据', 'Tool Data')}: ${format(usage.breakdown.toolData)} tokens (${toolPct.toFixed(1)}%)`}
                 />
               )}
               {/* 历史对话记录 */}
@@ -268,7 +268,7 @@ export default function TokenUsageBar({ usage, model, busy, english }: Props) {
               <div className="flex items-center gap-1.5 truncate">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                 <span className="truncate">{label('工具数据', 'Tool Data')}:</span>
-                <span className="font-mono text-slate-200 ml-auto">{format(usage.breakdown.canvasAndToolData)}</span>
+                <span className="font-mono text-slate-200 ml-auto">{format(usage.breakdown.toolData)}</span>
               </div>
               <div className="flex items-center gap-1.5 truncate">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />

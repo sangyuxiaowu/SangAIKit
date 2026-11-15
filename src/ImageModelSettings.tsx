@@ -165,8 +165,8 @@ export default function ImageModelSettings({ config, onChange, english }: Props)
           </h3>
           <p className="text-xs text-slate-400 mt-1">
             {label(
-              '配置用于在画布中一键生成封面插图、背景和元素的 AI 图像模型。',
-              'Configure AI models used for on-canvas image, background, and element generation.'
+              '配置 AI 图像生成模型。',
+              'Configure AI image generation models.'
             )}
           </p>
         </div>

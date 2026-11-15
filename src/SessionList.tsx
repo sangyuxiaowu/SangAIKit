@@ -25,22 +25,34 @@ import {
   CheckCheck,
   ArrowLeftRight
 } from 'lucide-react';
-import type { ChatSession } from './sessionTypes';
+import type { ChatSession, SessionImage, SessionTool } from './sessionTypes';
 
 export interface InsertGalleryImageInput {
   sessionId: string;
   imageId: string;
   name: string;
-  category: 'generated' | 'attachment';
+  category: 'generated' | 'preview' | 'attachment';
   prompt?: string;
 }
+
+export interface GalleryInsertAction {
+  visible?: boolean;
+  enabled?: boolean;
+  label?: string;
+  successLabel?: string;
+  disabledReason?: string;
+  isVisible?: (item: InsertGalleryImageInput) => boolean;
+}
+
+export type GalleryImageClassifier = (image: SessionImage, tools: readonly SessionTool[]) => Exclude<ImageCategory, 'all'> | undefined;
 
 interface Props {
   sessions: ChatSession[];
   activeId: string | null;
   disabled: boolean;
   english: boolean;
-  canInsertImage?: boolean;
+  imageInsertAction?: GalleryInsertAction;
+  classifyGalleryImage?: GalleryImageClassifier;
   onNew: () => Promise<void>;
   onSelect: (id: string) => Promise<void>;
   onRename: (id: string, title: string) => Promise<void>;
@@ -80,7 +92,8 @@ export default function SessionList({
   activeId,
   disabled,
   english,
-  canInsertImage = false,
+  imageInsertAction,
+  classifyGalleryImage,
   onNew,
   onSelect,
   onRename,
@@ -157,12 +170,7 @@ export default function SessionList({
               entry.tools?.find(t => t.name === 'generate_image' && t.image?.id === img.id) ||
               (img.name.startsWith('generated-') ? entry.tools?.find(t => t.name === 'generate_image') : undefined);
             const isGen = Boolean(img.name.startsWith('generated-') || genTool);
-            const isPrev =
-              img.name.includes('preview') ||
-              img.name.startsWith('layer-') ||
-              entry.tools?.some(
-                t => (t.name === 'get_canvas_preview' || t.name === 'get_selected_layers') && t.image?.id === img.id
-              );
+            const category = classifyGalleryImage?.(img, entry.tools || []) || (isGen ? 'generated' : 'attachment');
 
             itemsMap.set(key, {
               id: key,
@@ -172,9 +180,9 @@ export default function SessionList({
               name: img.name,
               type: img.type,
               size: img.size,
-              category: isGen ? 'generated' : isPrev ? 'preview' : 'attachment',
+              category,
               timestamp: session.updatedAt,
-              prompt: isGen ? extractToolPrompt(genTool?.arguments) : undefined
+              prompt: category === 'generated' ? extractToolPrompt(genTool?.arguments) : undefined
             });
           }
         });
@@ -186,11 +194,7 @@ export default function SessionList({
             const key = `${session.id}:${img.id}`;
             if (!itemsMap.has(key)) {
               const isGen = tool.name === 'generate_image' || img.name.startsWith('generated-');
-              const isPrev =
-                tool.name === 'get_canvas_preview' ||
-                tool.name === 'get_selected_layers' ||
-                img.name.includes('preview') ||
-                img.name.startsWith('layer-');
+              const category = classifyGalleryImage?.(img, entry.tools || []) || (isGen ? 'generated' : 'attachment');
 
               itemsMap.set(key, {
                 id: key,
@@ -200,9 +204,9 @@ export default function SessionList({
                 name: img.name,
                 type: img.type,
                 size: img.size,
-                category: isGen ? 'generated' : isPrev ? 'preview' : 'attachment',
+                category,
                 timestamp: session.updatedAt,
-                prompt: isGen ? extractToolPrompt(tool.arguments) : undefined
+                prompt: category === 'generated' ? extractToolPrompt(tool.arguments) : undefined
               });
             }
           }
@@ -211,7 +215,7 @@ export default function SessionList({
     });
 
     return Array.from(itemsMap.values());
-  }, [sessions]);
+  }, [sessions, classifyGalleryImage]);
 
   // 图片总存储占用字节
   const totalImageStorageBytes = useMemo(() => {
@@ -371,11 +375,15 @@ export default function SessionList({
     }
   };
 
-  // 将生图或附件插入到当前画布
+  const insertLabel = imageInsertAction?.label || label('插入图片', 'Insert image');
+  const insertSuccessLabel = imageInsertAction?.successLabel || label('已插入', 'Inserted');
+  const canInsertImage = imageInsertAction?.enabled !== false;
+  const isInsertVisible = (item: GalleryItem) => Boolean(onInsertImage && imageInsertAction?.visible !== false &&
+    (imageInsertAction?.isVisible ? imageInsertAction.isVisible(item) : item.category !== 'preview'));
+
   const handleInsertImage = async (item: GalleryItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (!onInsertImage || !canInsertImage || imageControlsDisabled || insertingId === item.id) return;
-    if (item.category !== 'generated' && item.category !== 'attachment') return;
+    if (!onInsertImage || !isInsertVisible(item) || !canInsertImage || imageControlsDisabled || insertingId) return;
 
     setInsertingId(item.id);
     setImageInsertError('');
@@ -393,7 +401,7 @@ export default function SessionList({
       }, 1800);
     } catch (error) {
       setImageInsertError(
-        error instanceof Error ? error.message : label('插入到画布失败。', 'Failed to insert image into canvas.')
+        error instanceof Error ? error.message : label('插入图片失败。', 'Failed to insert image.')
       );
     } finally {
       setInsertingId(null);
@@ -440,7 +448,7 @@ export default function SessionList({
         {confirmingImages && (
           <div role="alertdialog" aria-label={label('确认删除图片', 'Confirm image deletion')} className="space-y-2 rounded-lg border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-200">
             <p>{label(`永久删除选中的 ${selectedItems.length} 张图片（${formatBytes(selectedItems.reduce((total, item) => total + item.size, 0))}）？`, `Permanently delete ${selectedItems.length} selected images (${formatBytes(selectedItems.reduce((total, item) => total + item.size, 0))})?`)}</p>
-            <p className="text-[11px] text-slate-400">{label('聊天中的图片及其引用将被清理，不影响画布中已添加的图片，无法撤销。', 'Removes chat images and references, not images already on the canvas. Cannot be undone.')}</p>
+            <p className="text-[11px] text-slate-400">{label('聊天中的图片及其引用将被清理，无法撤销。', 'Removes chat images and references. Cannot be undone.')}</p>
             {imageDeleteError && <p role="alert">{imageDeleteError}</p>}
             <div className="flex justify-end gap-2">
               <button type="button" disabled={deletingImages} onClick={() => setConfirmingImages(false)} className="rounded-md bg-slate-800 px-3 py-1.5 text-slate-300">{label('取消', 'Cancel')}</button>
@@ -518,7 +526,7 @@ export default function SessionList({
                 ? 'bg-amber-600 text-white shadow-sm shadow-amber-900/30 font-bold'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
-            title={label('画布与图层实时预览快照', 'Canvas and layer preview snapshots')}
+            title={label('预览图片', 'Preview images')}
           >
             <Eye size={11} className="shrink-0" />
             <span className="truncate">{label('预览', 'Prev')}</span>
@@ -565,9 +573,9 @@ export default function SessionList({
             </p>
             <p className="text-[11px] text-slate-500">
               {galleryCategory === 'generated'
-                ? label('使用 AI 生图工具生成封面插图后将在此处归档', 'AI generated images will appear here')
+                ? label('AI 生成的图片将在此处归档', 'AI generated images will appear here')
                 : galleryCategory === 'preview'
-                ? label('AI 检查画布排版时生成的实时预览图在此处归档', 'Canvas layout previews will appear here')
+                ? label('预览图片将在此处归档', 'Preview images will appear here')
                 : galleryCategory === 'attachment'
                 ? label('用户在对话中上传或引用的图片附件在此处归档', 'Uploaded image attachments will appear here')
                 : label('所有对话中产生的图片素材均在此集中管理', 'All session images are stored here')}
@@ -640,12 +648,12 @@ export default function SessionList({
                       )}
                     </div>
 
-                    {/* 右上角快捷操作按钮（插入画布 + 下载） */}
+                    {/* 右上角快捷操作按钮 */}
                     <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-                      {onInsertImage && (item.category === 'generated' || item.category === 'attachment') && (
+                      {isInsertVisible(item) && (
                         <button
                           type="button"
-                          disabled={imageControlsDisabled || !canInsertImage || insertingId === item.id}
+                          disabled={imageControlsDisabled || !canInsertImage || Boolean(insertingId)}
                           onClick={e => void handleInsertImage(item, e)}
                           className={`p-1.5 rounded-lg transition-all shadow-md opacity-90 group-hover:opacity-100 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                             insertedId === item.id
@@ -654,12 +662,12 @@ export default function SessionList({
                           }`}
                           title={
                             !canInsertImage
-                              ? label('请先打开一个项目画布', 'Open a project canvas first')
+                              ? imageInsertAction?.disabledReason || insertLabel
                               : insertedId === item.id
-                              ? label('已插入到当前画布', 'Inserted into current canvas')
-                              : label('插入到当前画布', 'Insert into current canvas')
+                              ? insertSuccessLabel
+                              : insertLabel
                           }
-                          aria-label={`${label('插入到当前画布', 'Insert into current canvas')}: ${item.name}`}
+                          aria-label={`${insertLabel}: ${item.name}`}
                         >
                           {insertedId === item.id ? <Check size={13} /> : <ImagePlus size={13} />}
                         </button>
@@ -740,27 +748,27 @@ export default function SessionList({
                   {previewingImage.category === 'generated'
                     ? label('AI 生成图片', 'AI Generated')
                     : previewingImage.category === 'preview'
-                    ? label('画布排版预览图', 'Canvas Preview')
+                    ? label('预览图片', 'Preview image')
                     : label('图片附件', 'Image Attachment')}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
-                  {onInsertImage && (previewingImage.category === 'generated' || previewingImage.category === 'attachment') && (
+                  {isInsertVisible(previewingImage.item) && (
                     <button
                       type="button"
-                      disabled={imageControlsDisabled || !canInsertImage || insertingId === previewingImage.item.id}
+                      disabled={imageControlsDisabled || !canInsertImage || Boolean(insertingId)}
                       onClick={() => void handleInsertImage(previewingImage.item)}
                       className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-900/30 transition-all cursor-pointer"
                       title={
                         !canInsertImage
-                          ? label('请先打开一个项目画布', 'Open a project canvas first')
-                          : label('插入到当前画布', 'Insert into current canvas')
+                          ? imageInsertAction?.disabledReason || insertLabel
+                          : insertedId === previewingImage.item.id ? insertSuccessLabel : insertLabel
                       }
                     >
                       {insertedId === previewingImage.item.id ? <Check size={13} /> : <ImagePlus size={13} />}
                       <span>
                         {insertedId === previewingImage.item.id
-                          ? label('已插入画布', 'Inserted')
-                          : label('插入到当前画布', 'Insert to Canvas')}
+                          ? insertSuccessLabel
+                          : insertLabel}
                       </span>
                     </button>
                   )}

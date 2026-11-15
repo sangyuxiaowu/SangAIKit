@@ -52,6 +52,8 @@ bun run dev
 
 对话数据的所有权由调用方决定。使用 `useAssistant(runner, storage)` 时必须传入存储适配器；`AssistantStorage` 是通用接口，不代表组件会自动选择或创建持久化位置。宿主可接入自己的 IndexedDB、文件或服务端存储。消息上的分叉入口只有在传入 `onFork` 时显示；点击后只回调 `{ sessionId, entryId, responseItemCount? }`，不在共享组件内创建会话或复制图片。宿主负责验证标记、截断对应消息与 Responses 历史、复制引用图片并保存新会话。重新生成入口只会出现在最后一条 AI 回复上；通用控制器仅允许无工具副作用的安全重做，具有画布等外部状态的宿主应自行提供可验证的恢复能力。
 
+图片画廊的插入操作由 `assistant.insertImage` 提供；未提供时不显示按钮。`AiAssistant` 的 `imageInsertAction` 可随宿主状态更新 `visible`、`enabled`、`label`、`successLabel` 和 `disabledReason`，`isVisible(item)` 可控制单张图片的按钮；默认不显示预览图的插入按钮。文案由宿主按当前语言提供，未配置时使用通用文案。宿主负责读取图片、决定插入位置及处理失败。默认将内置生图识别为生成图片，其余归为附件；宿主可通过 `classifyGalleryImage(image, tools)` 返回 `generated`、`preview` 或 `attachment`，返回 `undefined` 时使用默认分类。删除图片的回调由宿主负责实际清理，画廊不假设外部引用的存储方式。
+
 宿主可通过 `createResponsesSender({ tools: [...] })` 注册函数工具；每个工具提供 JSON Schema 与 `execute`，并负责在执行前做参数校验、权限控制与必要的用户确认。工具执行状态可通过 `onTool` 回传界面，生图结果应通过会话图片存储保存，不能把付费或有副作用的工具默认当作可回滚操作。
 
 在接入时将同一组 `features` 传给 `AiAssistant`、`AiSettings` 和 `createResponsesSender` 的 `builtIn` 参数。例如：

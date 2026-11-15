@@ -17,6 +17,7 @@ export { default as TokenUsageBar } from './TokenUsageBar';
 export type { UsageSummary } from './TokenUsageBar';
 export type { SkillPreset, SkillSettingsProps } from './SkillSettings';
 export type { AssistantController, AssistantForkEvent, AssistantSession, AssistantViewProps, ChatEntry, ToolEvent } from './assistantTypes';
+export type { GalleryImageClassifier, GalleryInsertAction, InsertGalleryImageInput } from './SessionList';
 export type { FloatingStore } from './useFloatingPanel';
 export type { AiConfig, AiEndpointConfig, AiModelConfig, EncryptionManager, EncryptionStatus, SettingsProps } from './settingsTypes';
 export { DEFAULT_SETTINGS, createEndpoint, createModel, normalizeConfig, resolveSelection, selectModel, updateActiveModel } from './modelConfig';

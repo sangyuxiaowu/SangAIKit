@@ -128,8 +128,8 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
             </h3>
             <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
               {label(
-                '管理提供给 AI 封面助手的本地系统字体与开源字体，AI 将在设计时智能挑选最佳字体搭配。',
-                'Manage local and open-source fonts for the AI assistant to recommend for article covers.'
+                '管理提供给 AI 助手的本地系统字体与开源字体。',
+                'Manage local and open-source fonts available to the AI assistant.'
               )}
             </p>
           </div>
@@ -356,7 +356,7 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
               <span className="text-[11px] font-mono font-medium text-slate-400">({fonts.length}/100)</span>
             </h4>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              {label('可为每款字体填写适用风格，辅助 AI 助手在构图排版时做出精准推荐。', 'Add notes describing the ideal design contexts for each font.')}
+              {label('可为每款字体填写介绍，帮助 AI 助手了解其用途。', 'Add notes describing the intended use of each font.')}
             </p>
           </div>
         </div>

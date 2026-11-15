@@ -59,7 +59,7 @@ export function sessionUsageSummary(session: AssistantSession | undefined, model
   const toolItems = history.filter(item => item && typeof item === 'object' && 'type' in item && (item.type === 'function_call' || item.type === 'function_call_output'));
   const messages = history.filter(item => !toolItems.includes(item));
   const systemAndTools = estimateResponseInput([], instructions);
-  const canvasAndToolData = Math.ceil(new TextEncoder().encode(JSON.stringify(toolItems)).length / 3);
+  const toolData = Math.ceil(new TextEncoder().encode(JSON.stringify(toolItems)).length / 3);
   const historyMessages = Math.ceil(new TextEncoder().encode(JSON.stringify(messages)).length / 3);
   const currentTurnEstimate = prompt.trim() ? Math.ceil(new TextEncoder().encode(prompt.trim()).length / 3) : 0;
   const current = sumUsage(currentRequests);
@@ -71,6 +71,6 @@ export function sessionUsageSummary(session: AssistantSession | undefined, model
   const avgTokensPerSec = duration && output ? Math.round(output / (duration / 1000) * 10) / 10 : undefined;
   const safetyLevel = contextTokens + model.maxTokens > contextWindow || percent > 85 ? 'danger' : percent > 60 ? 'warning' : 'safe';
   return { total: sumUsage(requests), current, contextTokens, reservedOutput: model.maxTokens, percent, requestCount: requests.length,
-    breakdown: { systemAndTools, canvasAndToolData, historyMessages, currentTurnEstimate, contextWindow, safetyLevel },
+    breakdown: { systemAndTools, toolData, historyMessages, currentTurnEstimate, contextWindow, safetyLevel },
     performance: { turnDurationMs, turnTokensPerSec, avgTokensPerSec } };
 }
