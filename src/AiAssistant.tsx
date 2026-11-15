@@ -26,10 +26,10 @@ import {
   X,
   Zap
 } from 'lucide-react';
-import { useChatScroll } from '@sangyuxiaowu/sang-ai-kit/chat-scroll';
-import SessionList from '@sangyuxiaowu/sang-ai-kit/session-list';
+import { useChatScroll } from 'sang-ai-kit/chat-scroll';
+import SessionList from 'sang-ai-kit/session-list';
 import ToolDuration from './ToolDuration';
-import ChatScrollbar from '@sangyuxiaowu/sang-ai-kit/chat-scrollbar';
+import ChatScrollbar from 'sang-ai-kit/chat-scrollbar';
 import type { AssistantViewProps, ImageUpload } from './assistantTypes';
 import { useResolvedTheme } from './useResolvedTheme';
 import { normalizeAiFeatures } from './features';

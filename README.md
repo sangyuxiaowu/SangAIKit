@@ -39,7 +39,7 @@ bun run dev
 同级目录本地开发时，在宿主的 `package.json` 加入：
 
 ```json
-"@sangyuxiaowu/sang-ai-kit": "file:../SangAIKit"
+"sang-ai-kit": "file:../SangAIKit"
 ```
 
 然后在宿主执行 `bun install`。
@@ -80,7 +80,7 @@ const send = createResponsesSender({
 例如，使用自己的后端代理时，可先实现会话存储和发送适配器：
 
 ```tsx
-import { useAssistant, type AssistantRunner, type AssistantSnapshot, type AssistantStorage } from '@sangyuxiaowu/sang-ai-kit';
+import { useAssistant, type AssistantRunner, type AssistantSnapshot, type AssistantStorage } from 'sang-ai-kit';
 
 const storage: AssistantStorage = {
 	async load() {
@@ -115,13 +115,11 @@ const runner: AssistantRunner = async (messages, events) => {
 
 ## Git 引用
 
-本机开发不需要 Git。若希望其他开发者或 CI 不依赖相邻目录，可将此目录提交并推送为独立 GitHub 仓库，然后在宿主安装固定提交或标签：
+本机开发不需要 Git。若希望其他开发者或 CI 不依赖相邻目录，可在宿主安装固定提交或标签：
 
 ```bash
 bun add 'git+https://github.com/sangyuxiaowu/SangAIKit.git#<commit-or-tag>'
 ```
-
-地址仅为预期仓库地址，目前未创建或推送；私有仓库需要自行配置 Git 身份认证。固定提交或标签并提交宿主锁文件，不要在依赖地址中写入令牌。也可在后续发布到 npm 后按版本引用。
 
 ## 验证
 

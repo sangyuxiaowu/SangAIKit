@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@sangyuxiaowu/sang-ai-kit",
+      "name": "sang-ai-kit",
       "dependencies": {
         "lucide-react": "^0.564.0",
       },

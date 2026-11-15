@@ -1,8 +1,12 @@
 {
-  "name": "@sangyuxiaowu/sang-ai-kit",
-  "version": "0.1.0",
+  "name": "sang-ai-kit",
+  "version": "0.1.1",
   "license": "Apache-2.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sangyuxiaowu/SangAIKit.git"
+  },
   "files": [
     "src",
     "!src/**/*.test.*",
