@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 import { createResponsesSender } from './openai';
+import { createEndpoint } from './modelConfig';
 
 test('sends message history and streams text without storing the response', async () => {
   const originalFetch = globalThis.fetch;
@@ -52,7 +53,7 @@ test('executes an injected tool and returns its result to the next model round',
   try {
     const events: string[] = [];
     const text: string[] = [];
-    const send = createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model: 'model',
+    const send = createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model: 'model', maxToolRounds: 0,
       tools: [{ name: 'lookup', description: 'Read an item', parameters: { type: 'object' }, execute: async args => ({ found: args.query }) }],
       onTool: event => events.push(event.status)
     });
@@ -109,5 +110,22 @@ test('aborts a stalled request at the configured timeout', async () => {
     const send = createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model: 'model', timeoutMs: 5, onUsage: request => statuses.push(request.status) });
     await expect(send([{ role: 'user', content: 'wait' }], new AbortController().signal, () => {})).rejects.toThrow();
     expect(statuses).toEqual(['failed']);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('built-in image integration does not send image tools or prompts without valid models', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> = {};
+  globalThis.fetch = (async (_url, init) => {
+    requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response('event: response.completed\ndata: {"type":"response.completed","response":{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"ok"}]}]}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
+  }) as typeof fetch;
+  try {
+    const endpoint = createEndpoint('openai');
+    const config = { endpoints: [endpoint], imageModels: [], activeSelection: { endpointId: endpoint.id, modelId: endpoint.models[0].id }, systemPrompt: 'System', imageToolPrompt: 'Image-only instructions' };
+    const send = createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'test', model: 'model', builtIn: { config, features: { imageGeneration: true }, loadImage: async () => null, saveImage: async blob => ({ id: 'image', name: 'image.png', type: 'image/png', size: blob.size }) } });
+    await send([{ role: 'user', content: 'hello' }], new AbortController().signal, () => {});
+    expect(JSON.stringify(requestBody.tools)).not.toContain('generate_image');
+    expect(requestBody.instructions).toBe('System');
   } finally { globalThis.fetch = originalFetch; }
 });

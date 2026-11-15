@@ -11,9 +11,13 @@ bun install
 bun run dev
 ```
 
-演示支持会话新建、切换、重命名和删除、窗口拖动及缩放、多端点模型、图片附件、SKILL、生图、工具步骤、用量、浅色和深色。默认模型使用模拟回复和模拟工具，不访问远端；会话文本保存在浏览器 localStorage，图片保存在 IndexedDB。选择真实模型并配置兼容 Responses API 的端点后，可调用真实模型及配置的生图服务，可能产生费用。
+演示支持会话新建、切换、重命名和删除、窗口拖动及缩放、多端点模型、图片附件、SKILL、生图、工具步骤、用量、浅色和深色。工作区中的接入配置面板可实时切换宿主功能、调整调用上限，并预览实际注册的工具；模型与限制保存在配置存储，接入开关单独保存在浏览器 localStorage。默认模型使用模拟回复和模拟工具，不访问远端；会话文本保存在浏览器 localStorage，图片保存在 IndexedDB。选择真实模型并配置兼容 Responses API 的端点后，可调用真实模型及配置的生图服务，可能产生费用。
 
 演示将配置和 AES-GCM 加密后的 API Key 保存在 IndexedDB，须主动创建或导入主密钥；创建后可以下载口令保护的备份。主密钥不可导出，但运行时解密后的密钥仍可能被页面脚本读取，不能抵御设备或页面上的所有攻击。真实请求受跨域限制；公开生产环境建议把密钥和模型调用放在后端。
+
+功能开关由宿主接入时配置，不保存在用户的模型设置中。`imageGeneration`、`skills`、`quickSnippets`、`fontManagement` 默认开启；开启字体管理后，可用 `onlineFonts` 决定是否提供在线字体，关闭字体管理时不会注册字体工具，`onlineFonts` 不生效。开关不删除已有模型、规则、短语或字体配置。在线字体选项仅控制助手的字体目录和预览，不会移除宿主项目中已经使用的字体或阻止宿主自行加载字体。
+
+工具调用轮次上限和生图累计失败上限允许设置为 `0`，表示该项无上限；无限制可能增加请求次数和费用，用户仍可停止当前对话。
 
 ## 当前边界
 
@@ -44,7 +48,28 @@ bun run dev
 
 `AiAssistant` 接收 `AssistantController`、浮窗控制、模型信息，以及 Markdown、设置、用量、模型控件等插槽。`AiSettings` 接收配置与校验操作，生图、SKILL、字体、抠图和密钥面板按宿主能力注入；未提供的能力不显示。`useFloatingPanel` 接收位置存储接口；`useAssistant` 和 `createResponsesSender` 提供通用会话与 Responses 适配。可直接从演示适配器开始：`demo/main.tsx` 管理配置与界面，`demo/useDemoAssistant.ts` 注册工作区、SKILL 和生图工具。
 
+对话数据的所有权由调用方决定：`AssistantStorage` 只是一种可选通用实现，宿主也可完全使用自己的 IndexedDB、文件或服务端存储。消息上的分叉入口只有在传入 `onFork` 时显示；点击后只回调 `{ sessionId, entryId, responseItemCount? }`，不在共享组件内创建会话或复制图片。宿主负责验证标记、截断对应消息与 Responses 历史、复制引用图片并保存新会话。重新生成入口只会出现在最后一条 AI 回复上；通用控制器仅允许无工具副作用的安全重做，具有画布等外部状态的宿主应自行提供可验证的恢复能力。
+
 宿主可通过 `createResponsesSender({ tools: [...] })` 注册函数工具；每个工具提供 JSON Schema 与 `execute`，并负责在执行前做参数校验、权限控制与必要的用户确认。工具执行状态可通过 `onTool` 回传界面，生图结果应通过会话图片存储保存，不能把付费或有副作用的工具默认当作可回滚操作。
+
+在接入时将同一组 `features` 传给 `AiAssistant`、`AiSettings` 和 `createResponsesSender` 的 `builtIn` 参数。例如：
+
+```tsx
+const features = {
+	imageGeneration: true,
+	skills: true,
+	quickSnippets: true,
+	fontManagement: true,
+	onlineFonts: false
+};
+
+const send = createResponsesSender({
+	baseURL, apiKey, model,
+	builtIn: { config, features, loadImage, saveImage }
+});
+```
+
+生图、SKILL 和字体工具由组件库内置，发送器每轮创建独立工具实例；也可以手动调用 `createBuiltInTools({ config, features, loadImage, saveImage })`，将返回的 `tools` 与宿主业务工具合并。即使接入生图，没有已启用且有效的生图模型或缺少图片读写适配器时，也不会注册生图工具或追加生图提示词。宿主仍应提供自己的权限和确认机制。
 
 例如，使用自己的后端代理时，可先实现会话存储和发送适配器：
 

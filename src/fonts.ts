@@ -78,11 +78,11 @@ export function normalizeLocalFonts(value: unknown): LocalFontSelection[] {
   });
 }
 
-export function listFonts(selected: LocalFontSelection[] = []): FontToolEntry[] {
+export function listFonts(selected: LocalFontSelection[] = [], enabled: { localFonts?: boolean; onlineFonts?: boolean } = {}): FontToolEntry[] {
   return [
-    ...normalizeLocalFonts(selected).map(font => ({ family: font.family, name: font.fullName,
+    ...(enabled.localFonts === false ? [] : normalizeLocalFonts(selected)).map(font => ({ family: font.family, name: font.fullName,
       source: 'local' as const, description: font.description ?? '' })),
-    ...GOOGLE_FONTS.map(font => ({ family: font.family, name: font.name, source: font.source,
+    ...(enabled.onlineFonts === false ? [] : GOOGLE_FONTS).map(font => ({ family: font.family, name: font.name, source: font.source,
       description: font.description }))
   ];
 }

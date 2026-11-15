@@ -55,7 +55,7 @@ export function normalizeConfig(config: AiConfig): AiConfig {
   }
   if (!config.endpoints.some(endpoint => endpoint.id === config.activeSelection.endpointId && endpoint.models.some(model => model.id === config.activeSelection.modelId))) throw new Error('Active model not found.');
   for (const limit of [config.maxToolRounds, config.maxImageFailures]) {
-    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1)) throw new Error('Turn limits must be positive integers.');
+    if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 0)) throw new Error('Turn limits must be non-negative safe integers.');
   }
   for (const imageModel of config.imageModels || []) validateImageModel(imageModel, config);
   return { ...structuredClone(config), ...(config.skills !== undefined ? { skills: normalizeSkills(config.skills) } : {}),

@@ -20,6 +20,47 @@
   --color-blue-500: var(--sang-ai-accent, #3b82f6);
 }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)::-webkit-scrollbar,
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)::-webkit-scrollbar-track,
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) *::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)::-webkit-scrollbar-thumb,
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) *::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)::-webkit-scrollbar-thumb:hover,
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) *::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+:where(.cf-ai-panel, .sang-ai-settings)[data-theme='light'] *::-webkit-scrollbar-track {
+  background: #edf2f7;
+}
+
+:where(.cf-ai-panel, .sang-ai-settings)[data-theme='light'] *::-webkit-scrollbar-thumb {
+  background: #a7b5c5;
+}
+
+@supports (-moz-appearance: none) {
+  :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) * {
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #1e293b;
+  }
+
+  :where(.cf-ai-panel, .sang-ai-settings)[data-theme='light'] * {
+    scrollbar-color: #a7b5c5 #edf2f7;
+  }
+}
+
 .cf-ai-panel[data-theme='light'] {
   --ai-bg: #f9fbfd;
   --ai-surface: #fff;

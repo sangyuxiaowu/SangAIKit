@@ -20,6 +20,8 @@
     "./conversation-utils": "./src/conversationUtils.ts",
     "./tool-loop": "./src/toolLoop.ts",
     "./skills": "./src/skills.ts",
+    "./features": "./src/features.ts",
+    "./built-in-tools": "./src/builtInTools.ts",
     "./skill-settings": "./src/SkillSettings.tsx",
     "./image-generation": "./src/image-generation/index.ts",
     "./image-models": "./src/image-generation/models.ts",

@@ -16,7 +16,7 @@ export { fontListItems, GOOGLE_FONTS, listFonts, normalizeLocalFonts, readInstal
 export { default as TokenUsageBar } from './TokenUsageBar';
 export type { UsageSummary } from './TokenUsageBar';
 export type { SkillPreset, SkillSettingsProps } from './SkillSettings';
-export type { AssistantController, AssistantSession, AssistantViewProps, ChatEntry, ToolEvent } from './assistantTypes';
+export type { AssistantController, AssistantForkEvent, AssistantSession, AssistantViewProps, ChatEntry, ToolEvent } from './assistantTypes';
 export type { FloatingStore } from './useFloatingPanel';
 export type { AiConfig, AiEndpointConfig, AiModelConfig, EncryptionManager, EncryptionStatus, SettingsProps } from './settingsTypes';
 export { DEFAULT_SETTINGS, createEndpoint, createModel, normalizeConfig, resolveSelection, selectModel, updateActiveModel } from './modelConfig';
@@ -28,6 +28,10 @@ export type { StoredChatSession, ChatUiState, EncryptedSecret } from './configSt
 export { estimateResponseInput, normalizeUsage, sanitizeResponseItems, sessionUsageSummary, sumUsage } from './conversationUtils';
 export { runToolLoop } from './toolLoop';
 export { MAX_SKILLS, MAX_SKILL_CONTENT, normalizeSkills, skillsPrompt, readSkill } from './skills';
+export { DEFAULT_AI_FEATURES, normalizeAiFeatures } from './features';
+export { createBuiltInTools } from './builtInTools';
+export type { BuiltInToolOptions } from './builtInTools';
+export type { AiFeatures } from './features';
 export { generateImages, availableImageModels, validateImageModel, imageCapabilities, createImageModel, IMAGE_MODEL_PRESETS } from './image-generation/index';
 export type { GenerateImageInput, ImageQuality, ImageModelConfig } from './image-generation/types';
 export { createImageUpload, blobToDataUrl } from './imageAttachments';

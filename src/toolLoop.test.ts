@@ -36,3 +36,30 @@ test('preserves completed work at the round limit', async () => {
   expect(limited).toBe(true);
   expect(input).toEqual([{ type: 'result', value: 'ok' }, { type: 'message', value: 'limit' }]);
 });
+
+test('zero allows multiple tool rounds until the model finishes', async () => {
+  let rounds = 0;
+  let limited = false;
+  const result = await runToolLoop<Item, Call>({ input: [], signal: signal(), maxRounds: 0,
+    request: async () => ++rounds <= 3
+      ? { content: '', streamedText: '', output: [], calls: [{ call_id: String(rounds), name: 'read' }], unsupportedOutput: false }
+      : { content: 'done', streamedText: '', output: [{ type: 'message', value: 'done' }], calls: [], unsupportedOutput: false },
+    execute: async () => ({ output: { type: 'result', value: 'ok' }, cancelled: false }),
+    assistantMessage: value => ({ type: 'message', value }), onText: () => {}, onLimit: () => { limited = true; }, cancelledMessage: 'cancelled', limitMessage: 'limit'
+  });
+  expect(result).toBe('done');
+  expect(rounds).toBe(4);
+  expect(limited).toBe(false);
+});
+
+test('unlimited loop remains cancellable', async () => {
+  const controller = new AbortController();
+  let rounds = 0;
+  const run = runToolLoop<Item, Call>({ input: [], signal: controller.signal, maxRounds: 0,
+    request: async () => { if (++rounds === 3) controller.abort(new Error('stopped')); return { content: '', streamedText: '', output: [], calls: [{ call_id: String(rounds), name: 'read' }], unsupportedOutput: false }; },
+    execute: async () => ({ output: { type: 'result', value: 'ok' }, cancelled: false }),
+    assistantMessage: value => ({ type: 'message', value }), onText: () => {}, cancelledMessage: 'cancelled', limitMessage: 'limit'
+  });
+  await expect(run).rejects.toThrow('stopped');
+  expect(rounds).toBe(3);
+});

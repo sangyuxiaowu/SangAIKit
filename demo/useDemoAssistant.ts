@@ -1,8 +1,9 @@
-import { availableImageModels, blobToDataUrl, createIndexedDbImageStore, createResponsesSender, generateImages, listFonts, readSkill, resolveSelection, skillsPrompt, useAssistant, type AiConfig, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type ImageQuality, type ResponsesTool } from '../src';
-import type { AssistantController, ToolEvent } from '../src/assistantTypes';
+import { createIndexedDbImageStore, createResponsesSender, resolveSelection, useAssistant, type AiConfig, type AiFeatures, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type ResponsesTool } from '../src';
+import type { AssistantController, AssistantForkEvent, ToolEvent } from '../src/assistantTypes';
 import type { SessionImage } from '../src/sessionTypes';
 
 const storageKey = 'sang-ai-kit-demo-snapshot-v2';
+export const DEMO_FEATURES: Readonly<AiFeatures> = { imageGeneration: true, skills: true, quickSnippets: true, fontManagement: true, onlineFonts: true };
 const images = createIndexedDbImageStore('sang-ai-kit-demo-images-v1');
 export const loadDemoImage = (sessionId: string, imageId: string) => images.loadImage(sessionId, imageId);
 const storage: AssistantStorage = {
@@ -14,7 +15,7 @@ const storage: AssistantStorage = {
   images
 };
 
-export function useDemoAssistant(config: AiConfig): AssistantController {
+export function useDemoAssistant(config: AiConfig, features: Partial<AiFeatures> = DEMO_FEATURES): AssistantController {
   return useAssistant(async (entries, events) => {
     const { endpoint, model } = resolveSelection(config);
     if (endpoint.id === 'local-demo') {
@@ -37,44 +38,11 @@ export function useDemoAssistant(config: AiConfig): AssistantController {
         const inputImages = entry.role === 'user' ? refs.map(image => `attachment://${image.id}`) : [];
         return { role: entry.role, content, ...(inputImages.length ? { images: inputImages } : {}) };
       }));
-      const skills = config.skills || [];
       const tools: ResponsesTool[] = [{ name: 'read_workspace', description: 'Read the current demo workspace metadata.', parameters: { type: 'object', properties: {} }, execute: async () => ({ name: '演示工作区' }) }];
-      tools.push({ name: 'list_fonts', description: 'List selected local fonts and curated Google fonts.', parameters: { type: 'object', properties: {} }, execute: async () => listFonts(config.localFonts) });
-      if (skills.length) tools.push({ name: 'skill', description: 'Read the full text of an available skill.', parameters: { type: 'object', properties: { name: { type: 'string', enum: skills.map(skill => skill.name) } }, required: ['name'] }, execute: async args => readSkill(skills, args) });
-      const imageModels = availableImageModels(config);
       let generatedImage: SessionImage | undefined;
-      let imageFailures = 0;
-      if (imageModels.length) tools.push({
-        name: 'generate_image', description: `Generate images using a configured model: ${imageModels.map(item => `${item.label} (${item.id})`).join(', ')}.`,
-        parameters: { type: 'object', properties: { modelConfigId: { type: 'string', enum: imageModels.map(item => item.id) }, prompt: { type: 'string' }, referenceImageId: { type: 'string' }, size: { type: 'string' }, ratio: { type: 'string' }, quality: { type: 'string' }, n: { type: 'integer' } }, required: ['modelConfigId', 'prompt'] },
-        execute: async args => {
-          if (imageFailures >= (config.maxImageFailures ?? 3)) throw new Error('Image generation failure limit reached in this turn.');
-          try {
-            if (typeof args.modelConfigId !== 'string' || typeof args.prompt !== 'string') throw new Error('A model ID and prompt are required.');
-            if (args.referenceImageId !== undefined && typeof args.referenceImageId !== 'string') throw new Error('Invalid reference image ID.');
-            if (args.size !== undefined && typeof args.size !== 'string') throw new Error('Invalid image size.');
-            if (args.ratio !== undefined && typeof args.ratio !== 'string') throw new Error('Invalid image ratio.');
-            if (args.quality !== undefined && (typeof args.quality !== 'string' || !['low', 'medium', 'high', 'xhigh', 'max', 'auto'].includes(args.quality))) throw new Error('Invalid image quality.');
-            if (args.n !== undefined && (typeof args.n !== 'number' || !Number.isInteger(args.n))) throw new Error('Invalid image count.');
-            let reference: string | undefined;
-            if (typeof args.referenceImageId === 'string') {
-              const blob = await events.loadImage(args.referenceImageId);
-              if (!blob) throw new Error('Reference image not found.');
-              reference = await blobToDataUrl(blob);
-            }
-            const results = await generateImages(config, { modelConfigId: args.modelConfigId, prompt: args.prompt,
-              ...(typeof args.size === 'string' ? { size: args.size } : {}), ...(typeof args.ratio === 'string' ? { ratio: args.ratio } : {}),
-              ...(typeof args.quality === 'string' ? { quality: args.quality as ImageQuality } : {}), ...(typeof args.n === 'number' ? { n: args.n } : {})
-            }, events.signal, reference);
-            const saved: SessionImage[] = [];
-            for (const blob of results) saved.push(await events.saveImage(blob, `generated-${Date.now()}-${saved.length + 1}.${blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png'}`));
-            generatedImage = saved[0];
-            return { images: saved.map(image => ({ id: image.id, name: image.name, type: image.type, size: image.size })) };
-          } catch (error) { if (!events.signal.aborted) imageFailures++; throw error; }
-        }
-      });
       await createResponsesSender({ baseURL: endpoint.endpoint, apiKey: endpoint.apiKey, model: model.modelId,
-        instructions: [config.systemPrompt, skillsPrompt(skills)].filter(Boolean).join('\n\n'), maxOutputTokens: model.maxTokens, onReasoning: events.onReasoning, onUsage: events.onUsage,
+        instructions: config.systemPrompt, builtIn: { config, features, loadImage: events.loadImage, saveImage: events.saveImage, onImage: image => { generatedImage ??= image; } },
+        maxOutputTokens: model.maxTokens, onReasoning: events.onReasoning, onUsage: events.onUsage,
         history: events.history, onHistory: events.onHistory,
         supportsVision: model.supportsVision, loadImage: events.loadImage,
         onTool: tool => { if (tool.name === 'generate_image' && tool.status === 'running') generatedImage = undefined; events.onTool(tool.name === 'generate_image' && tool.status === 'success' && generatedImage ? { ...tool, image: generatedImage } : tool); }, tools, maxToolRounds: config.maxToolRounds,
@@ -82,4 +50,60 @@ export function useDemoAssistant(config: AiConfig): AssistantController {
       })(messages, events.signal, events.onText);
     }
   }, storage);
+}
+
+function responseCountThroughEntry(session: AssistantSnapshot['sessions'][number], entryIndex: number): number {
+  const entry = session.entries[entryIndex];
+  if (Number.isSafeInteger(entry.responseItemCount) && entry.responseItemCount! >= 0) return entry.responseItemCount!;
+  const userTurns = session.entries.slice(0, entryIndex + 1).filter(item => item.role === 'user').length;
+  let seenUsers = 0;
+  const history = session.responseItems || [];
+  for (let index = 0; index < history.length; index++) {
+    const item = history[index];
+    if (item && typeof item === 'object' && 'role' in item && item.role === 'user' && ++seenUsers > userTurns) return index;
+  }
+  return history.length;
+}
+
+export async function forkDemoConversation(assistant: AssistantController, event: AssistantForkEvent, reloadConversation: () => Promise<void>): Promise<void> {
+  if (assistant.busy || assistant.saving || assistant.activeSessionId !== event.sessionId) throw new Error('The active conversation changed.');
+  const source = assistant.sessions.find(session => session.id === event.sessionId);
+  const entryIndex = source?.entries.findIndex(entry => entry.id === event.entryId) ?? -1;
+  if (!source || entryIndex < 0 || source.entries[entryIndex].role !== 'assistant') throw new Error('The selected response is unavailable.');
+  const responseItemCount = event.responseItemCount ?? responseCountThroughEntry(source, entryIndex);
+  if (!Number.isSafeInteger(responseItemCount) || responseItemCount < 0 || responseItemCount > (source.responseItems?.length || 0)) throw new Error('The response history is unavailable.');
+  const entries = structuredClone(source.entries.slice(0, entryIndex + 1));
+  const entryIds = new Set(entries.map(entry => entry.id));
+  const referenced = new Map<string, SessionImage>();
+  for (const entry of entries) {
+    for (const image of [...(entry.images || []), ...(entry.tools || []).flatMap(tool => tool.image ? [tool.image] : [])]) referenced.set(image.id, image);
+  }
+  const id = crypto.randomUUID();
+  const copied: { sessionId: string; imageId: string }[] = [];
+  try {
+    for (const image of referenced.values()) {
+      const blob = await images.loadImage(source.id, image.id);
+      if (!blob) throw new Error(`Missing chat image: ${image.name}`);
+      await images.saveImage(id, image.id, blob);
+      copied.push({ sessionId: id, imageId: image.id });
+    }
+    const branch = {
+      ...source,
+      id,
+      title: `${source.title} (分叉)`.slice(0, 120),
+      updatedAt: Date.now(),
+      entries,
+      responseItems: structuredClone((source.responseItems || []).slice(0, responseItemCount)),
+      requests: source.requests.filter(item => item.entryId && entryIds.has(item.entryId))
+    };
+    const stored = await storage.load();
+    await storage.save({
+      sessions: [branch, ...(stored?.sessions || assistant.sessions).filter(item => item.id !== branch.id)],
+      activeSessionId: id
+    });
+    await reloadConversation();
+  } catch (error) {
+    await images.deleteImages(copied).catch(() => {});
+    throw error;
+  }
 }

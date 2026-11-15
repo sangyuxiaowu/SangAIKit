@@ -20,9 +20,11 @@ interface Props {
   english: boolean;
   catalogId?: string;
   loadGooglePreviews?: boolean;
+  showLocalFonts?: boolean;
+  showOnlineFonts?: boolean;
 }
 
-export default function FontSettings({ fonts, onChange, english, catalogId = 'sang-ai-google-fonts-catalog', loadGooglePreviews = true }: Props) {
+export default function FontSettings({ fonts, onChange, english, catalogId = 'sang-ai-google-fonts-catalog', loadGooglePreviews = true, showLocalFonts = true, showOnlineFonts = true }: Props) {
   const [installed, setInstalled] = useState<LocalFontSelection[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -36,7 +38,9 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
 
   // 加载 Google Fonts 外部字体文件以确保字体名称以真实字形渲染
   useEffect(() => {
-    if (!loadGooglePreviews || typeof document === 'undefined') return;
+    if (typeof document === 'undefined') return;
+    if (!showOnlineFonts) { document.getElementById(catalogId)?.remove(); return; }
+    if (!loadGooglePreviews) return;
     const linkId = catalogId;
     if (document.getElementById(linkId)) return;
     const link = document.createElement('link');
@@ -51,7 +55,8 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
     url.searchParams.set('display', 'swap');
     link.href = url.href;
     document.head.appendChild(link);
-  }, [catalogId, loadGooglePreviews]);
+    return () => { link.remove(); };
+  }, [catalogId, loadGooglePreviews, showOnlineFonts]);
 
   // 获取本机字体匹配项
   const allMatches = useMemo(() => {
@@ -117,9 +122,9 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
           <div>
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
               <span>{label('字体资源与排版管理', 'Font & Typography Management')}</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/25 font-semibold">
+              {showLocalFonts && <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/25 font-semibold">
                 {fonts.length}/100 {label('已添加', 'Selected')}
-              </span>
+              </span>}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
               {label(
@@ -131,7 +136,7 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
         </div>
 
         {/* 唯一的读取/管理本机字体入口 */}
-        <button
+        {showLocalFonts && <button
           type="button"
           onClick={handleToggleFontPanel}
           disabled={busy}
@@ -153,11 +158,11 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
               ? label('收起字体库', 'Collapse Fonts')
               : label('读取本机字体', 'Read Installed Fonts')}
           </span>
-        </button>
+        </button>}
       </div>
 
       {/* 版权与隐私提示卡片 */}
-      <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 text-xs text-amber-200/90 leading-relaxed shadow-sm">
+      {showLocalFonts && <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 text-xs text-amber-200/90 leading-relaxed shadow-sm">
         <Info size={16} className="text-amber-400 shrink-0 mt-0.5" />
         <p className="text-xs text-amber-300/90 leading-relaxed">
           {label(
@@ -165,9 +170,9 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
             'Selected local font names are shared with AI; font files are not uploaded. You are responsible for usage rights and commercial licensing. Fonts may be unavailable on other devices.'
           )}
         </p>
-      </div>
+      </div>}
 
-      {error && (
+      {showLocalFonts && error && (
         <div
           role="alert"
           className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-300 break-words flex items-center gap-2"
@@ -178,7 +183,7 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
       )}
 
       {/* 内嵌展开式字体选择面板（避免弹窗套弹窗，高度适中控制在卡片内） */}
-      {isPanelOpen && (
+      {showLocalFonts && isPanelOpen && (
         <div className="p-4 sm:p-5 rounded-2xl border border-blue-500/35 bg-slate-950/85 shadow-lg space-y-4 animate-in fade-in-50 duration-200">
           {/* 面板头部 */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
@@ -343,7 +348,7 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
       )}
 
       {/* 已选本地字体列表（一行 2 个卡片排列） */}
-      <div className="space-y-3">
+      {showLocalFonts && <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-xs font-bold text-slate-200 flex items-center gap-2">
@@ -442,10 +447,10 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* 内置 Google Fonts 专区 */}
-      <div className="space-y-3.5 pt-4 border-t border-slate-800/80">
+      {showOnlineFonts && <div className="space-y-3.5 pt-4 border-t border-slate-800/80">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="space-y-0.5">
             <h4 className="text-xs font-bold text-slate-200 flex items-center gap-2">
@@ -496,7 +501,7 @@ export default function FontSettings({ fonts, onChange, english, catalogId = 'sa
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </section>
   );
 }

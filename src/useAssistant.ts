@@ -152,7 +152,9 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
       await runnerRef.current([...previous, user], {
         signal: abort.signal,
         history: historyBefore,
-        onHistory: items => { if (active() && !abort.signal.aborted) modifySession(id, session => ({ ...session, responseItems: items })); },
+        onHistory: items => { if (active() && !abort.signal.aborted) modifySession(id, session => ({ ...session, responseItems: items,
+          entries: session.entries.map(entry => entry.id === response.id ? { ...entry, responseItemCount: items.length } : entry)
+        })); },
         onUsage: request => { if (active()) modifySession(id, session => {
           const requests = [...session.requests.filter(item => item.id !== request.id), { ...request, entryId: response.id }];
           const turnRequests = requests.filter(item => item.entryId === response.id);

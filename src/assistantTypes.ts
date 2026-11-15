@@ -2,6 +2,7 @@ import type { CSSProperties, Dispatch, PointerEventHandler, ReactNode, SetStateA
 import type { ChatSession as SessionSummary, SessionImage, SessionTool } from './sessionTypes';
 import type { InsertGalleryImageInput } from './SessionList';
 import type { AssistantTheme } from './useResolvedTheme';
+import type { AiFeatures } from './features';
 
 export interface TokenUsage {
   inputTokens: number;
@@ -37,6 +38,7 @@ export interface ChatEntry {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  responseItemCount?: number;
   activity?: ({ id: string; type: 'text'; text: string } | { id: string; type: 'tool'; toolId: string })[];
   reasoning?: string;
   tools?: ToolEvent[];
@@ -84,6 +86,12 @@ export interface AssistantController {
   regenerate: () => Promise<void>;
 }
 
+export interface AssistantForkEvent {
+  sessionId: string;
+  entryId: string;
+  responseItemCount?: number;
+}
+
 type PointerEvents = {
   onPointerDown?: PointerEventHandler<HTMLElement>;
   onPointerMove?: PointerEventHandler<HTMLElement>;
@@ -115,6 +123,8 @@ export interface AssistantViewProps {
   contextMeta?: string;
   canInsertImage?: boolean;
   quickSnippets: string[];
+  features?: Partial<AiFeatures>;
+  onFork?: (event: AssistantForkEvent) => void;
   active: { endpoint: { apiKey: string }; model: { label: string; supportsVision: boolean } };
   imageToolsEnabled?: boolean;
   toolLabels?: Record<string, [string, string]>;

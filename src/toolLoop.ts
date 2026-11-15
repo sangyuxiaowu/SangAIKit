@@ -22,7 +22,8 @@ export interface ToolLoopOptions<Item, Call extends ToolCall> {
 
 export async function runToolLoop<Item, Call extends ToolCall>(options: ToolLoopOptions<Item, Call>): Promise<string> {
   const { input, signal } = options;
-  for (let round = 0; round < options.maxRounds; round++) {
+  if (!Number.isSafeInteger(options.maxRounds) || options.maxRounds < 0) throw new Error('Tool round limit must be a non-negative safe integer.');
+  for (let round = 0; options.maxRounds === 0 || round < options.maxRounds; round++) {
     signal.throwIfAborted();
     const response = await options.request(input);
     if (response.content && !response.streamedText) options.onText(response.content);

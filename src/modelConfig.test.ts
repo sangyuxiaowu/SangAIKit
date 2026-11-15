@@ -26,3 +26,8 @@ test('rejects request paths, invalid models and missing selection', () => {
   source.activeSelection.modelId = 'missing';
   expect(() => normalizeConfig(source)).toThrow('Active model');
 });
+
+test('allows zero limits and rejects negative or fractional limits', () => {
+  expect(normalizeConfig({ ...config(), maxToolRounds: 0, maxImageFailures: 0 })).toMatchObject({ maxToolRounds: 0, maxImageFailures: 0 });
+  for (const value of [-1, 0.5, Infinity]) expect(() => normalizeConfig({ ...config(), maxToolRounds: value })).toThrow('non-negative');
+});

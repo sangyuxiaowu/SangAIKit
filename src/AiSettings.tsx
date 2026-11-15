@@ -30,18 +30,20 @@ import {
 import type { AiEndpointConfig, AiModelConfig, AiSkillConfig, EncryptionStatus, SettingsProps } from './settingsTypes';
 import type { ReasoningEffort } from './ModelControls';
 import { useResolvedTheme } from './useResolvedTheme';
+import { normalizeAiFeatures } from './features';
 import '../generated/sang-ai-utilities.css';
 import './assistant.css';
 
 const ALL_REASONING_EFFORTS: ReasoningEffort[] = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
-export default function AiSettings({ config, onSave, onBack, english, theme = 'dark', store, onKeyChanged, initialSecurity,
+export default function AiSettings({ config, features: featureSettings, onSave, onBack, english, theme = 'dark', store, onKeyChanged, initialSecurity,
   createEndpoint, createModel, normalizeConfig, resolveSelection, defaults,
   renderImageModels, renderBackgroundRemoval, renderFonts, renderSkills, renderEncryption, showTurnLimits = true, supportsVision = true, recommendedSnippets = [], notice }: SettingsProps) {
   const { systemPrompt: SYSTEM_PROMPT, imageToolPrompt: DEFAULT_IMAGE_TOOL_PROMPT, quickSnippets: DEFAULT_QUICK_SNIPPETS,
     maxToolRounds: DEFAULT_MAX_TOOL_ROUNDS, maxImageFailures: DEFAULT_MAX_IMAGE_FAILURES } = defaults;
   const resolvedTheme = useResolvedTheme(theme);
   const [draft, setDraft] = useState(() => structuredClone(config));
+  const features = normalizeAiFeatures(featureSettings);
   const [showKeyMap, setShowKeyMap] = useState<Record<string, boolean>>({});
   const [expandedEndpoints, setExpandedEndpoints] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -190,7 +192,7 @@ export default function AiSettings({ config, onSave, onBack, english, theme = 'd
   const tabList = useMemo(() => [
     {
       id: 'models' as const,
-      label: label('端点与模型', 'Endpoints & Models'),
+      label: label('模型配置', 'Endpoints & Models'),
       icon: Cpu,
       count: draft.endpoints.reduce((acc, ep) => acc + (ep.models?.length || 0), 0),
       tooltip: label('管理 LLM API 端点与模型列表', 'Manage LLM endpoints and model list')
@@ -235,7 +237,11 @@ export default function AiSettings({ config, onSave, onBack, english, theme = 'd
       alert: keyStatus === 'missing' || keyStatus === 'locked',
       tooltip: label('密钥加密存储与轮次限制', 'Encryption storage and turn limits')
     }
-  ].filter(item => item.id !== 'images' || renderImageModels).filter(item => item.id !== 'removal' || renderBackgroundRemoval).filter(item => item.id !== 'skills' || renderSkills).filter(item => item.id !== 'other' || showTurnLimits || renderFonts || store.encryption), [draft.endpoints, draft.imageModels, draft.skills?.length, snippets.length, keyStatus, english, renderImageModels, renderBackgroundRemoval, renderSkills, renderFonts, showTurnLimits, store.encryption]);
+  ].filter(item => item.id !== 'images' || (renderImageModels && features.imageGeneration)).filter(item => item.id !== 'removal' || renderBackgroundRemoval).filter(item => item.id !== 'skills' || (renderSkills && features.skills)).filter(item => item.id !== 'snippets' || features.quickSnippets).filter(item => item.id !== 'other' || showTurnLimits || (renderFonts && features.fontManagement) || store.encryption), [draft.endpoints, draft.imageModels, draft.skills?.length, snippets.length, keyStatus, english, renderImageModels, renderBackgroundRemoval, renderSkills, renderFonts, features.imageGeneration, features.skills, features.quickSnippets, features.fontManagement, features.onlineFonts, showTurnLimits, store.encryption]);
+
+  useEffect(() => {
+    if (!tabList.some(item => item.id === tab)) setTab('models');
+  }, [tab, tabList]);
 
   const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const tabIds = tabList.map(item => item.id);
@@ -312,6 +318,7 @@ const ToggleSwitch: React.FC<{
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={label}
         disabled={disabled}
         onClick={e => {
           e.stopPropagation();
@@ -503,7 +510,7 @@ const ToggleSwitch: React.FC<{
                       <span>{label('单轮对话限制', 'Per-Turn Limits')}</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {label('防止长会话无限调用工具或重试生图消耗过多额度。', 'Guard against runaway tool loops and consecutive image retry limits.')}
+                      {label('0 表示无上限；无限制可能增加调用次数和费用。', '0 means unlimited; unlimited calls may increase usage and cost.')}
                     </p>
                   </div>
                   <button type="button"
@@ -518,14 +525,14 @@ const ToggleSwitch: React.FC<{
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
                   <div className="min-w-0">
                     <label htmlFor="ai-max-tool-rounds" className={labelClass}>{label('工具调用轮次上限', 'Tool Round Limit')}</label>
-                    <input id="ai-max-tool-rounds" type="number" min={1} max={Number.MAX_SAFE_INTEGER} step={1} required
+                    <input id="ai-max-tool-rounds" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} required
                       value={Number.isNaN(draft.maxToolRounds) ? '' : draft.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS}
                       onChange={event => setDraft(prev => ({ ...prev, maxToolRounds: event.target.valueAsNumber }))}
                       className={inputClass} />
                   </div>
                   <div className="min-w-0">
                     <label htmlFor="ai-max-image-failures" className={labelClass}>{label('生图累计失败上限', 'Image Failure Limit')}</label>
-                    <input id="ai-max-image-failures" type="number" min={1} max={Number.MAX_SAFE_INTEGER} step={1} required
+                    <input id="ai-max-image-failures" type="number" min={0} max={Number.MAX_SAFE_INTEGER} step={1} required
                       value={Number.isNaN(draft.maxImageFailures) ? '' : draft.maxImageFailures ?? DEFAULT_MAX_IMAGE_FAILURES}
                       onChange={event => setDraft(prev => ({ ...prev, maxImageFailures: event.target.valueAsNumber }))}
                       className={inputClass} />
@@ -533,7 +540,7 @@ const ToggleSwitch: React.FC<{
                 </div>
               </section>
             )}
-              {tab === 'other' && renderFonts?.(draft.localFonts ?? [], localFonts => setDraft(previous => ({ ...previous, localFonts })), english)}
+              {tab === 'other' && features.fontManagement && renderFonts?.(draft.localFonts ?? [], localFonts => setDraft(previous => ({ ...previous, localFonts })), english, { localFonts: true, onlineFonts: features.onlineFonts })}
             </div>
 
             {/* TAB: 端点与模型 */}
@@ -1192,7 +1199,7 @@ const ToggleSwitch: React.FC<{
                 </div>
 
                 {/* 生图工具提示词 */}
-                {renderImageModels && <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3">
+                {renderImageModels && features.imageGeneration && <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
                     <div>
                       <h4 className="text-sm font-bold text-slate-100 flex items-center gap-2">

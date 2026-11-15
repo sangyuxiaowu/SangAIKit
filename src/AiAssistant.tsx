@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Copy,
+  GitBranch,
   History,
   Image as ImageIcon,
   ImagePlus,
@@ -31,17 +32,19 @@ import ToolDuration from './ToolDuration';
 import ChatScrollbar from '@sangyuxiaowu/sang-ai-kit/chat-scrollbar';
 import type { AssistantViewProps, ImageUpload } from './assistantTypes';
 import { useResolvedTheme } from './useResolvedTheme';
+import { normalizeAiFeatures } from './features';
 import '../generated/sang-ai-utilities.css';
 import './assistant.css';
 
 export default function AiAssistant({
   assistant, floating, language, theme = 'dark', title, emptyTitle, emptyDescription, contextTitle, contextMeta, canInsertImage,
-  quickSnippets, active, imageToolsEnabled, toolLabels = {}, loadImage, createImageUpload, imageModelForTool,
+  quickSnippets, features: featureSettings, onFork, active, imageToolsEnabled, toolLabels = {}, loadImage, createImageUpload, imageModelForTool,
   sumUsage, renderMarkdown, renderUsage, renderModelControls, renderSettings,
   open: propOpen,
   onOpenChange
 }: AssistantViewProps) {
   const resolvedTheme = useResolvedTheme(theme);
+  const features = normalizeAiFeatures(featureSettings);
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = propOpen !== undefined;
   const open = isControlled ? propOpen : internalOpen;
@@ -60,6 +63,7 @@ export default function AiAssistant({
   const [prompt, setPrompt] = useState('');
   const [keyAlert, setKeyAlert] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [forking, setForking] = useState(false);
   const chatScroll = useChatScroll(assistant.activeSessionId, open && !floating.minimized, !showSessions);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +140,7 @@ export default function AiAssistant({
   };
 
   // 从配置中读取快捷短语或使用预设
-  const activeSnippets = quickSnippets;
+  const activeSnippets = features.quickSnippets ? quickSnippets : [];
 
   useEffect(() => {
     if (open) {
@@ -202,7 +206,7 @@ export default function AiAssistant({
       return;
     }
     try {
-      const uploads = await Promise.all(selectedFiles.map(file => createImageUpload(file, imageToolsEnabled)));
+      const uploads = await Promise.all(selectedFiles.map(file => createImageUpload(file, features.imageGeneration && imageToolsEnabled)));
       setImageUploads(previous => [...previous, ...uploads]);
       setKeyAlert(null);
     } catch (error) {
@@ -580,6 +584,23 @@ export default function AiAssistant({
                                   )}
                                 </button>
                               )}
+
+                              {onFork && <button
+                                type="button"
+                                disabled={controlsDisabled || forking}
+                                onClick={() => {
+                                  if (forking) return;
+                                  setForking(true);
+                                  void Promise.resolve(onFork({ sessionId: assistant.activeSessionId!, entryId: entry.id, ...(entry.responseItemCount !== undefined ? { responseItemCount: entry.responseItemCount } : {}) }))
+                                    .catch(error => setKeyAlert(error instanceof Error ? error.message : label('分叉会话失败。', 'Unable to fork conversation.')))
+                                    .finally(() => setForking(false));
+                                }}
+                                className="cf-ai-action-btn flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={label('从此回复分叉会话', 'Fork conversation from this response')}
+                                aria-label={label('分叉会话', 'Fork conversation')}
+                              >
+                                <GitBranch size={13} />
+                              </button>}
 
                               {/* 左2：图标重新生成 (仅图标，无文字，样式与复制按钮完全一致) */}
                               {isLastAssistant && assistant.canRegenerate && (

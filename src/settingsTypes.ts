@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ReasoningEffort } from './ModelControls';
 import type { AssistantTheme } from './useResolvedTheme';
+import type { AiFeatures } from './features';
 
 export interface AiModelConfig {
   id: string; label: string; modelId: string; maxTokens: number; contextWindow: number;
@@ -36,6 +37,7 @@ export interface SettingsProps {
   onBack: () => void;
   english: boolean;
   theme?: AssistantTheme;
+  features?: Partial<AiFeatures>;
   store: { encryption?: EncryptionManager; loadConfig: () => Promise<AiConfig> };
   onKeyChanged: () => Promise<void>;
   initialSecurity?: boolean;
@@ -50,7 +52,7 @@ export interface SettingsProps {
   defaults: { systemPrompt: string; imageToolPrompt: string; quickSnippets: string[]; maxToolRounds: number; maxImageFailures: number };
   renderImageModels?: (config: AiConfig, onChange: (config: AiConfig) => void, english: boolean) => ReactNode;
   renderBackgroundRemoval?: (english: boolean) => ReactNode;
-  renderFonts?: (fonts: LocalFontSelection[], onChange: (fonts: LocalFontSelection[]) => void, english: boolean) => ReactNode;
+  renderFonts?: (fonts: LocalFontSelection[], onChange: (fonts: LocalFontSelection[]) => void, english: boolean, enabled: { localFonts: boolean; onlineFonts: boolean }) => ReactNode;
   renderSkills?: (skills: AiSkillConfig[], onChange: (skills: AiSkillConfig[]) => Promise<void>, english: boolean) => ReactNode;
   renderEncryption?: (manager: EncryptionManager, callbacks: { onStatus: (status: EncryptionStatus) => void; onBusy: (busy: boolean) => void; onBackupPending: (pending: boolean) => void; onChanged: () => Promise<void> }, english: boolean) => ReactNode;
 }

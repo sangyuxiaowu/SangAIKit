@@ -21,3 +21,19 @@ test('generated utility rules are limited to assistant surfaces', async () => {
   });
   stylesheet.walkAtRules('keyframes', rule => { expect(rule.params.startsWith('sang-ai-')).toBe(true); });
 });
+
+test('typography utilities override unlayered host element resets', async () => {
+  const stylesheet = postcss.parse(await readFile(new URL('../generated/sang-ai-utilities.css', import.meta.url), 'utf8'));
+  const typographyRules: postcss.Rule[] = [];
+  stylesheet.walkRules(rule => {
+    if (rule.selectors.some(selector => selector.includes('.text-xs'))) typographyRules.push(rule);
+  });
+  expect(typographyRules.length).toBeGreaterThan(0);
+  for (const rule of typographyRules) {
+    let parent = rule.parent;
+    while (parent && parent.type !== 'root') {
+      expect(parent.type === 'atrule' && parent.name === 'layer').toBe(false);
+      parent = parent.parent as typeof parent;
+    }
+  }
+});

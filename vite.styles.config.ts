@@ -25,6 +25,10 @@ function scopeComponentStyles(): Plugin {
           for (const [original, renamed] of animations) declaration.value = declaration.value.replace(new RegExp(`(^|[^a-zA-Z0-9_-])${original}(?=$|[^a-zA-Z0-9_-])`, 'g'), `$1${renamed}`);
         });
         stylesheet.walkAtRules('layer', rule => {
+          if (rule.params.trim() === 'utilities' && rule.nodes) {
+            rule.replaceWith(...rule.nodes);
+            return;
+          }
           rule.params = rule.params.split(',').map(name => `sang-ai-${name.trim()}`).join(', ');
         });
         stylesheet.walkRules(rule => {

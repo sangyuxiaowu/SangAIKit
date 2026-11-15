@@ -4,8 +4,8 @@ import { createRoot } from 'react-dom/client';
 import { Blob as NodeBlob } from 'node:buffer';
 import { afterEach, expect, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
-import { createEndpoint, createImageModel, type AiConfig } from '../src';
-import { loadDemoImage, useDemoAssistant } from './useDemoAssistant';
+import { createEndpoint, createImageModel, type AiConfig, type AssistantController } from '../src';
+import { forkDemoConversation, loadDemoImage, useDemoAssistant } from './useDemoAssistant';
 
 afterEach(() => { vi.unstubAllGlobals(); localStorage.clear(); });
 
@@ -110,4 +110,42 @@ it('keeps demo turns when switching to a real model', async () => {
     await act(async () => { await assistant!.send('Real turn'); });
     expect(input.map(item => item.role)).toEqual(['user', 'assistant', 'user']);
   } finally { await act(async () => root.unmount()); }
+});
+
+it('lets the host fork a conversation from a selected assistant response', async () => {
+  const sessionId = 'source-session';
+  const session = {
+    id: sessionId,
+    title: 'Source',
+    updatedAt: 1,
+    entries: [
+      { id: 'user-1', role: 'user' as const, content: 'First' },
+      { id: 'assistant-1', role: 'assistant' as const, content: 'Answer one', responseItemCount: 2 },
+      { id: 'user-2', role: 'user' as const, content: 'Second' },
+      { id: 'assistant-2', role: 'assistant' as const, content: 'Answer two', responseItemCount: 4 }
+    ],
+    requests: [
+      { id: 'request-1', entryId: 'assistant-1', endpoint: 'https://example.com/v1', model: 'test', createdAt: 1, status: 'completed' as const },
+      { id: 'request-2', entryId: 'assistant-2', endpoint: 'https://example.com/v1', model: 'test', createdAt: 2, status: 'completed' as const }
+    ],
+    responseItems: [
+      { role: 'user', content: 'First' },
+      { role: 'assistant', content: 'Answer one' },
+      { role: 'user', content: 'Second' },
+      { role: 'assistant', content: 'Answer two' }
+    ]
+  };
+  localStorage.setItem('sang-ai-kit-demo-snapshot-v2', JSON.stringify({ sessions: [session], activeSessionId: sessionId }));
+  let saved: { sessions: typeof session[]; activeSessionId: string } | undefined;
+  const assistant = {
+    sessions: [session], activeSessionId: sessionId, busy: false, saving: false,
+    reloadConfig: async () => {}
+  } as unknown as AssistantController;
+  await forkDemoConversation(assistant, { sessionId, entryId: 'assistant-1', responseItemCount: 2 }, async () => { saved = JSON.parse(localStorage.getItem('sang-ai-kit-demo-snapshot-v2') || 'null'); });
+  expect(saved?.sessions).toHaveLength(2);
+  const branch = saved!.sessions.find(item => item.id === saved!.activeSessionId)!;
+  expect(branch.title).toBe('Source (分叉)');
+  expect(branch.entries.map(entry => entry.id)).toEqual(['user-1', 'assistant-1']);
+  expect(branch.responseItems).toEqual(session.responseItems.slice(0, 2));
+  expect(branch.requests.map(request => request.id)).toEqual(['request-1']);
 });
