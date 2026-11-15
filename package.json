@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "license": "Apache-2.0",
   "type": "module",
+  "files": [
+    "src",
+    "!src/**/*.test.*",
+    "generated/sang-ai-utilities.css"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./chat-scrollbar": "./src/ChatScrollbar.tsx",
