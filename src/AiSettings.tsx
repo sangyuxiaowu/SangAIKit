@@ -122,7 +122,7 @@ export default function AiSettings({ config, features: featureSettings, onSave, 
     }));
   };
 
-  const addEndpoint = (provider: 'openai' | 'deepseek' | 'local' | 'custom') => {
+  const addEndpoint = (provider: 'openai' | 'deepseek' | 'agnes' | 'local' | 'custom') => {
     const added = createEndpoint(provider);
     setDraft(prev => ({ ...prev, endpoints: [...prev.endpoints, added] }));
     setExpandedEndpoints(prev => ({ ...prev, [added.id]: true }));
@@ -660,6 +660,7 @@ const ToggleSwitch: React.FC<{
                         </option>
                         <option value="deepseek">DeepSeek (官方)</option>
                         <option value="openai">OpenAI (官方)</option>
+                        <option value="agnes">Agnes AI (官方)</option>
                         <option value="local">Ollama (本地)</option>
                         <option value="custom">{label('自定义端点 (OpenAI兼容)', 'Custom Endpoint')}</option>
                       </select>

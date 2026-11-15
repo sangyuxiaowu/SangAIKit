@@ -17,11 +17,16 @@ export function createModel(modelId = 'gpt-4o-mini'): AiModelConfig {
     thinkingEnabled: false, reasoningEffort: 'none', defaultReasoningEffort: 'medium' };
 }
 
-export function createEndpoint(provider: 'openai' | 'deepseek' | 'local' | 'custom' = 'custom'): AiEndpointConfig {
-  const preset = provider === 'deepseek' ? { name: 'DeepSeek', endpoint: 'https://api.deepseek.com', model: 'deepseek-flash' }
+export function createEndpoint(provider: 'openai' | 'deepseek' | 'agnes' | 'local' | 'custom' = 'custom'): AiEndpointConfig {
+  const preset = provider === 'deepseek' ? { name: 'DeepSeek', endpoint: 'https://api.deepseek.com', model: 'deepseek-flash', contextWindow: 1_000_000, maxTokens: 128_000 }
+    : provider === 'agnes' ? { name: 'Agnes AI', endpoint: 'https://apihub.agnes-ai.com/v1', model: 'agnes-3.0-flash', contextWindow: 512_000, maxTokens: 65_536 }
+    : provider === 'openai' ? { name: 'OpenAI', endpoint: 'https://api.openai.com/v1', model: 'gpt-5.6-luna', contextWindow: 1_050_000, maxTokens: 128_000 }
     : provider === 'local' ? { name: 'Ollama', endpoint: 'http://localhost:11434/v1', model: 'qwen3' }
-      : { name: provider === 'custom' ? 'Custom' : 'OpenAI', endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini' };
-  return { id: crypto.randomUUID(), name: preset.name, endpoint: preset.endpoint, apiKey: '', models: [createModel(preset.model)] };
+      : { name: 'Custom', endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini' };
+  const model = createModel(preset.model);
+  if ('contextWindow' in preset) Object.assign(model, { contextWindow: preset.contextWindow, maxTokens: preset.maxTokens,
+    thinkingAvailable: true, supportsVision: provider !== 'agnes' });
+  return { id: crypto.randomUUID(), name: preset.name, endpoint: preset.endpoint, apiKey: '', models: [model] };
 }
 
 export function resolveSelection(config: AiConfig) {

@@ -45,7 +45,7 @@ export interface SettingsProps {
   supportsVision?: boolean;
   recommendedSnippets?: string[];
   notice?: ReactNode;
-  createEndpoint: (provider: 'openai' | 'deepseek' | 'local' | 'custom') => AiEndpointConfig;
+  createEndpoint: (provider: 'openai' | 'deepseek' | 'agnes' | 'local' | 'custom') => AiEndpointConfig;
   createModel: (modelId: string) => AiModelConfig;
   normalizeConfig: (config: AiConfig) => AiConfig;
   resolveSelection: (config: AiConfig) => { endpoint: AiEndpointConfig; model: AiModelConfig };
