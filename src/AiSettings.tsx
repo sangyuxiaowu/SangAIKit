@@ -31,6 +31,7 @@ import type { AiEndpointConfig, AiModelConfig, AiSkillConfig, EncryptionStatus, 
 import type { ReasoningEffort } from './ModelControls';
 import { useResolvedTheme } from './useResolvedTheme';
 import { normalizeAiFeatures } from './features';
+import { testEndpointConnection } from './endpointConnection';
 import '../generated/sang-ai-utilities.css';
 import './assistant.css';
 
@@ -43,6 +44,8 @@ export default function AiSettings({ config, features: featureSettings, onSave, 
     maxToolRounds: DEFAULT_MAX_TOOL_ROUNDS, maxImageFailures: DEFAULT_MAX_IMAGE_FAILURES } = defaults;
   const resolvedTheme = useResolvedTheme(theme);
   const [draft, setDraft] = useState(() => structuredClone(config));
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   const features = normalizeAiFeatures(featureSettings);
   const [showKeyMap, setShowKeyMap] = useState<Record<string, boolean>>({});
   const [expandedEndpoints, setExpandedEndpoints] = useState<Record<string, boolean>>(() => {
@@ -89,6 +92,10 @@ export default function AiSettings({ config, features: featureSettings, onSave, 
   const activeSelection = resolveSelection(draft);
   const activeEndpoint = activeSelection.endpoint;
   const activeModel = activeSelection.model;
+
+  useEffect(() => {
+    setTestStatus(null);
+  }, [activeEndpoint.id, activeEndpoint.endpoint, activeEndpoint.apiKey, activeModel.id, activeModel.modelId]);
 
   const toggleEndpointExpanded = (id: string) => {
     setExpandedEndpoints(prev => ({ ...prev, [id]: !prev[id] }));
@@ -167,21 +174,24 @@ export default function AiSettings({ config, features: featureSettings, onSave, 
   const handleTestConnection = async () => {
     setIsTesting(true);
     setTestStatus(null);
+    const tested = { endpointId: activeEndpoint.id, endpoint: activeEndpoint.endpoint, apiKey: activeEndpoint.apiKey, modelId: activeModel.id, model: activeModel.modelId };
+    const stillCurrent = () => {
+      try {
+        const current = resolveSelection(draftRef.current);
+        return current.endpoint.id === tested.endpointId && current.endpoint.endpoint === tested.endpoint
+          && current.endpoint.apiKey === tested.apiKey && current.model.id === tested.modelId && current.model.modelId === tested.model;
+      } catch { return false; }
+    };
     try {
       if (!activeEndpoint.endpoint) {
         throw new Error(label('端点 URL 不能为空', 'Endpoint URL cannot be empty'));
       }
-      const url = new URL(activeEndpoint.endpoint);
-      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
-        throw new Error(label('无效的 URL 协议', 'Invalid URL protocol'));
-      }
-      if (!activeEndpoint.apiKey && !activeEndpoint.endpoint.includes('localhost')) {
-        setTestStatus(label('⚠️ 尚未填写 API Key', '⚠️ API Key is empty'));
-      } else {
-        setTestStatus(label('✓ 端点配置格式有效（未发送请求）', '✓ Endpoint configuration is valid (no request sent)'));
-      }
+      const reply = await testEndpointConnection(activeEndpoint, activeModel);
+      if (!stillCurrent()) return;
+      setTestStatus(label(`✓ 连接成功：${reply.slice(0, 120)}`, `✓ Connected: ${reply.slice(0, 120)}`));
     } catch (err) {
-      setTestStatus(label(`❌ 配置验证失败: ${(err as Error).message}`, `❌ Validation failed: ${(err as Error).message}`));
+      if (!stillCurrent()) return;
+      setTestStatus(label(`❌ 连接失败：${(err as Error).message}`, `❌ Connection failed: ${(err as Error).message}`));
     } finally {
       setIsTesting(false);
     }
@@ -561,7 +571,7 @@ const ToggleSwitch: React.FC<{
 
                     <div className="flex items-center gap-3 shrink-0">
                       {testStatus && (
-                        <span className="text-xs font-medium text-blue-300 flex items-center gap-1.5 bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-500/20">
+                        <span role="status" className={`text-xs font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${testStatus.startsWith('❌') ? 'text-rose-300 bg-rose-950/40 border-rose-500/20' : 'text-emerald-300 bg-emerald-950/40 border-emerald-500/20'}`}>
                           {testStatus}
                         </span>
                       )}
@@ -572,7 +582,7 @@ const ToggleSwitch: React.FC<{
                         className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-900/30 transition-all cursor-pointer"
                       >
                         <Sparkles size={13} className={isTesting ? 'animate-spin' : ''} />
-                        <span>{isTesting ? label('验证中...', 'Validating...') : label('验证配置', 'Validate Configuration')}</span>
+                        <span>{isTesting ? label('连接测试中...', 'Testing Connection...') : label('连接测试', 'Test Connection')}</span>
                       </button>
                     </div>
                   </div>

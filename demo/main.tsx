@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { Bot, CircleHelp, LayoutDashboard, MessageSquare, Sun, Moon, Monitor } from 'lucide-react';
-import { AiAssistant, AiSettings, ConfigDecryptionError, EncryptionKeySettings, FontSettings, ImageModelSettings, ModelControls, SkillSettings, TokenUsageBar, DEFAULT_SETTINGS, IMAGE_MODEL_PRESETS, availableImageModels, createBrowserAiStore, createEndpoint, createImageModel, createImageUpload, createKeyBackupCodec, createModel, normalizeConfig, normalizeAiFeatures, resolveSelection, selectModel, sessionUsageSummary, sumUsage, updateActiveModel, useFloatingPanel, type AiConfig, type AiFeatures, type AssistantTheme, type FloatingStore } from '../src';
+import { AiAssistant, AiSettings, ConfigDecryptionError, EncryptionKeySettings, FontSettings, ImageModelSettings, ModelControls, SkillSettings, TokenUsageBar, DEFAULT_SETTINGS, availableImageModels, createBrowserAiStore, createEndpoint, createImageUpload, createKeyBackupCodec, createModel, normalizeConfig, normalizeAiFeatures, resolveSelection, selectModel, sessionUsageSummary, sumUsage, updateActiveModel, useFloatingPanel, type AiConfig, type AiFeatures, type AssistantTheme, type FloatingStore } from '../src';
 import { DEMO_FEATURES, forkDemoConversation, loadDemoImage, useDemoAssistant } from './useDemoAssistant';
 import DemoIntegrationSettings from './DemoIntegrationSettings';
 import './demo.css';
@@ -19,7 +19,7 @@ function initialConfig(): AiConfig {
   Object.assign(demo, { id: 'local-demo', name: '本地演示', endpoint: 'https://demo.invalid/v1', apiKey: '' });
   Object.assign(demo.models[0], { label: '本地演示', modelId: 'demo' });
   const openai = createEndpoint('openai');
-  return { endpoints: [demo, openai], imageModels: IMAGE_MODEL_PRESETS.map(preset => createImageModel(preset.id)), activeSelection: { endpointId: demo.id, modelId: demo.models[0].id }, systemPrompt: defaults.systemPrompt, quickSnippets: [...defaults.quickSnippets], skills: [] };
+  return { endpoints: [demo, openai], imageModels: [], activeSelection: { endpointId: demo.id, modelId: demo.models[0].id }, systemPrompt: defaults.systemPrompt, quickSnippets: [...defaults.quickSnippets], skills: [] };
 }
 
 const configStore = createBrowserAiStore({ databaseName: 'sang-ai-kit-demo-config-v1', defaultConfig: initialConfig, normalizeConfig });

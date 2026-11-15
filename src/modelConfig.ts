@@ -18,7 +18,7 @@ export function createModel(modelId = 'gpt-4o-mini'): AiModelConfig {
 }
 
 export function createEndpoint(provider: 'openai' | 'deepseek' | 'local' | 'custom' = 'custom'): AiEndpointConfig {
-  const preset = provider === 'deepseek' ? { name: 'DeepSeek', endpoint: 'https://api.deepseek.com', model: 'deepseek-chat' }
+  const preset = provider === 'deepseek' ? { name: 'DeepSeek', endpoint: 'https://api.deepseek.com', model: 'deepseek-flash' }
     : provider === 'local' ? { name: 'Ollama', endpoint: 'http://localhost:11434/v1', model: 'qwen3' }
       : { name: provider === 'custom' ? 'Custom' : 'OpenAI', endpoint: 'https://api.openai.com/v1', model: 'gpt-4o-mini' };
   return { id: crypto.randomUUID(), name: preset.name, endpoint: preset.endpoint, apiKey: '', models: [createModel(preset.model)] };

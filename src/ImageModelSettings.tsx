@@ -160,7 +160,7 @@ export default function ImageModelSettings({ config, onChange, english }: Props)
             </span>
             <span>{label('生图模型配置', 'Image Generation Models')}</span>
             <span className="text-xs font-normal text-slate-500">
-              ({label(`已配置 ${models.length} 个`, `${models.length} configured`)})
+              ({label(`已添加 ${models.length} 个`, `${models.length} added`)})
             </span>
           </h3>
           <p className="text-xs text-slate-400 mt-1">
@@ -227,8 +227,8 @@ export default function ImageModelSettings({ config, onChange, english }: Props)
           </div>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
             {label(
-              '点击右上角选择预设（如 Kolors、Agnes 等），即可在对话中直接让 AI 绘制图像并插入画布。',
-              'Select a preset (e.g. Kolors, Agnes) from above to let AI generate images directly into your canvas.'
+              '先添加预设，再绑定模型端点并启用；只有有效启用的模型才会在对话中注册生图工具。',
+              'Add a preset, bind an endpoint, and enable it. Only valid enabled models register the image-generation tool.'
             )}
           </p>
         </div>
