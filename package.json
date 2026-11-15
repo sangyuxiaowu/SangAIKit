@@ -1,0 +1,69 @@
+{
+  "name": "@sangyuxiaowu/sang-ai-kit",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./chat-scrollbar": "./src/ChatScrollbar.tsx",
+    "./chat-scroll": "./src/useChatScroll.ts",
+    "./session-list": "./src/SessionList.tsx",
+    "./assistant": "./src/AiAssistant.tsx",
+    "./settings": "./src/AiSettings.tsx",
+    "./encryption-settings": "./src/EncryptionKeySettings.tsx",
+    "./encryption": "./src/encryption.ts",
+    "./config-store": "./src/configStore.ts",
+    "./model-controls": "./src/ModelControls.tsx",
+    "./floating": "./src/useFloatingPanel.ts",
+    "./floating-geometry": "./src/floatingGeometry.ts",
+    "./responses": "./src/responses.ts",
+    "./conversation-utils": "./src/conversationUtils.ts",
+    "./tool-loop": "./src/toolLoop.ts",
+    "./skills": "./src/skills.ts",
+    "./skill-settings": "./src/SkillSettings.tsx",
+    "./image-generation": "./src/image-generation/index.ts",
+    "./image-models": "./src/image-generation/models.ts",
+    "./image-types": "./src/image-generation/types.ts",
+    "./image-settings": "./src/ImageModelSettings.tsx",
+    "./image-attachments": "./src/imageAttachments.ts",
+    "./fonts": "./src/fonts.ts",
+    "./font-settings": "./src/FontSettings.tsx",
+    "./token-usage": "./src/TokenUsageBar.tsx",
+    "./style.css": "./src/style.css"
+  },
+  "peerDependencies": {
+    "openai": "^7.34.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@types/bun": "latest",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.1.4",
+    "dompurify": "^3.4.0",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.3",
+    "marked": "^18.0.0",
+    "postcss": "^8.5.6",
+    "openai": "^7.34.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^5.0.4",
+    "tailwindcss": "^4.1.18"
+  },
+  "dependencies": {
+    "lucide-react": "^0.564.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "test": "bun test src",
+    "test:integration": "vitest run demo",
+    "typecheck": "tsc --noEmit",
+    "build:styles": "vite build --config vite.styles.config.ts",
+    "build": "vite build"
+  }
+}
