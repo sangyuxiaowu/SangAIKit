@@ -37,6 +37,15 @@ const ALL_REASONING_EFFORTS: ReasoningEffort[] = [
   'max'
 ];
 
+export function getSelectedReasoningEffort(model: ModelControlModel): ReasoningEffort {
+  const availableEfforts = ALL_REASONING_EFFORTS.filter(
+    value => value !== 'none' && (!model.supportedReasoningEfforts?.length || model.supportedReasoningEfforts.includes(value))
+  );
+  if (model.reasoningEffort !== 'none' && availableEfforts.includes(model.reasoningEffort)) return model.reasoningEffort;
+  if (model.defaultReasoningEffort && model.defaultReasoningEffort !== 'none' && availableEfforts.includes(model.defaultReasoningEffort)) return model.defaultReasoningEffort;
+  return availableEfforts[0] || 'medium';
+}
+
 export default function ModelControls<Config extends ModelControlConfig>({ config, configure, resolveSelection, selectModel, updateActiveModel, disabled, english }: Props<Config>) {
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -81,13 +90,9 @@ export default function ModelControls<Config extends ModelControlConfig>({ confi
   const availableEfforts = ALL_REASONING_EFFORTS.filter(
     val => val !== 'none' && (!model.supportedReasoningEfforts?.length || model.supportedReasoningEfforts.includes(val))
   );
+  if (!availableEfforts.length) availableEfforts.push('medium');
 
-  const currentEffort: ReasoningEffort =
-    model.reasoningEffort && model.reasoningEffort !== 'none' && availableEfforts.includes(model.reasoningEffort)
-      ? model.reasoningEffort
-      : (model.defaultReasoningEffort && model.defaultReasoningEffort !== 'none' && availableEfforts.includes(model.defaultReasoningEffort)
-          ? model.defaultReasoningEffort
-          : (availableEfforts[0] || 'medium'));
+  const currentEffort = getSelectedReasoningEffort(model);
 
   return (
     <div className="flex items-center gap-1 select-none min-w-0">

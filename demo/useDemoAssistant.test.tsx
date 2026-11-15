@@ -4,10 +4,44 @@ import { createRoot } from 'react-dom/client';
 import { Blob as NodeBlob } from 'node:buffer';
 import { afterEach, expect, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
-import { createEndpoint, createImageModel, type AiConfig, type AssistantController } from '../src';
+import { AiSettings, DEFAULT_SETTINGS, createEndpoint, createImageModel, createModel, normalizeConfig, resolveSelection, type AiConfig, type AssistantController } from '../src';
 import { forkDemoConversation, loadDemoImage, useDemoAssistant } from './useDemoAssistant';
 
 afterEach(() => { vi.unstubAllGlobals(); localStorage.clear(); });
+
+it('keeps settings thinking switches and the current model state in sync', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const scrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
+  Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
+  const endpoint = createEndpoint('openai');
+  endpoint.models[0].thinkingAvailable = false;
+  const config: AiConfig = { endpoints: [endpoint], activeSelection: { endpointId: endpoint.id, modelId: endpoint.models[0].id }, systemPrompt: '' };
+  const onSave = vi.fn(async (_config: AiConfig) => {});
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(<AiSettings config={config} onSave={onSave} onBack={vi.fn()} english={false}
+      store={{ loadConfig: async () => config }} onKeyChanged={async () => {}} createEndpoint={createEndpoint}
+      createModel={createModel} normalizeConfig={normalizeConfig} resolveSelection={resolveSelection} defaults={DEFAULT_SETTINGS} />));
+    await act(async () => { host.querySelector<HTMLButtonElement>('button[aria-label="思考推理"]')!.click(); });
+    const defaultSwitch = () => host.querySelector<HTMLButtonElement>('button[aria-label="默认开启"]')!;
+    expect(defaultSwitch().getAttribute('aria-checked')).toBe('true');
+    await act(async () => { defaultSwitch().click(); });
+    expect(defaultSwitch().getAttribute('aria-checked')).toBe('false');
+    await act(async () => { defaultSwitch().click(); });
+    await act(async () => { host.querySelector<HTMLButtonElement>('button[type="submit"]')!.click(); });
+    expect(onSave).toHaveBeenCalledOnce();
+    expect(onSave.mock.calls[0][0].endpoints[0].models[0]).toMatchObject({
+      thinkingAvailable: true, thinkingEnabled: true, defaultThinkingEnabled: true, reasoningEffort: 'medium'
+    });
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    if (scrollIntoView) Object.defineProperty(Element.prototype, 'scrollIntoView', scrollIntoView);
+    else Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+  }
+});
 
 it('calls a configured image provider and saves the result in the conversation', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -67,12 +101,19 @@ it('preserves response history across turns and only allows immediate redo', asy
   try {
     await act(async () => { root.render(<Harness />); });
     await act(async () => { await assistant!.send('First'); });
+    expect(requests[0].reasoning).toEqual({ effort: 'none' });
+    endpoint.models[0].thinkingEnabled = true;
+    await act(async () => { root.render(<Harness />); });
     await act(async () => { await assistant!.send('Second'); });
+    expect(requests[1].reasoning).toEqual({ effort: 'medium' });
     const second = requests[1].input as Array<{ role?: string; content?: unknown }>;
     expect(second.map(item => item.role)).toEqual(['user', 'assistant', 'user']);
     expect(second[2].content).toBe('Second');
     expect(assistant!.canRegenerate).toBe(true);
+    endpoint.models[0].reasoningEffort = 'high';
+    await act(async () => { root.render(<Harness />); });
     await act(async () => { await assistant!.regenerate(); });
+    expect(requests[2].reasoning).toEqual({ effort: 'high' });
     const retried = requests[2].input as Array<{ role?: string; content?: unknown }>;
     expect(retried.map(item => item.role)).toEqual(['user', 'assistant', 'user']);
     expect(retried[2].content).toBe('Second');

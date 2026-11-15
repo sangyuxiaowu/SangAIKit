@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import type { AiEndpointConfig, AiModelConfig, AiSkillConfig, EncryptionStatus, SettingsProps } from './settingsTypes';
 import type { ReasoningEffort } from './ModelControls';
+import { getSelectedReasoningEffort } from './ModelControls';
 import { useResolvedTheme } from './useResolvedTheme';
 import { normalizeAiFeatures } from './features';
 import { testEndpointConnection } from './endpointConnection';
@@ -92,10 +93,11 @@ export default function AiSettings({ config, features: featureSettings, onSave, 
   const activeSelection = resolveSelection(draft);
   const activeEndpoint = activeSelection.endpoint;
   const activeModel = activeSelection.model;
+  const activeReasoning = activeModel.thinkingAvailable ? (activeModel.thinkingEnabled ? getSelectedReasoningEffort(activeModel) : 'none') : undefined;
 
   useEffect(() => {
     setTestStatus(null);
-  }, [activeEndpoint.id, activeEndpoint.endpoint, activeEndpoint.apiKey, activeModel.id, activeModel.modelId]);
+  }, [activeEndpoint.id, activeEndpoint.endpoint, activeEndpoint.apiKey, activeModel.id, activeModel.modelId, activeModel.maxTokens, activeReasoning]);
 
   const toggleEndpointExpanded = (id: string) => {
     setExpandedEndpoints(prev => ({ ...prev, [id]: !prev[id] }));
@@ -174,12 +176,13 @@ export default function AiSettings({ config, features: featureSettings, onSave, 
   const handleTestConnection = async () => {
     setIsTesting(true);
     setTestStatus(null);
-    const tested = { endpointId: activeEndpoint.id, endpoint: activeEndpoint.endpoint, apiKey: activeEndpoint.apiKey, modelId: activeModel.id, model: activeModel.modelId };
+    const tested = { endpointId: activeEndpoint.id, endpoint: activeEndpoint.endpoint, apiKey: activeEndpoint.apiKey, modelId: activeModel.id, model: activeModel.modelId, maxTokens: activeModel.maxTokens, reasoning: activeReasoning };
     const stillCurrent = () => {
       try {
         const current = resolveSelection(draftRef.current);
         return current.endpoint.id === tested.endpointId && current.endpoint.endpoint === tested.endpoint
-          && current.endpoint.apiKey === tested.apiKey && current.model.id === tested.modelId && current.model.modelId === tested.model;
+          && current.endpoint.apiKey === tested.apiKey && current.model.id === tested.modelId && current.model.modelId === tested.model
+          && current.model.maxTokens === tested.maxTokens && (current.model.thinkingAvailable ? (current.model.thinkingEnabled ? getSelectedReasoningEffort(current.model) : 'none') : undefined) === tested.reasoning;
       } catch { return false; }
     };
     try {
@@ -938,6 +941,7 @@ const ToggleSwitch: React.FC<{
                                                       thinkingAvailable: checked,
                                                       defaultThinkingEnabled: checked,
                                                       thinkingEnabled: checked,
+                                                      reasoningEffort: checked ? getSelectedReasoningEffort(m) : m.reasoningEffort,
                                                       supportedReasoningEfforts: checked
                                                         ? [...ALL_REASONING_EFFORTS]
                                                         : m.supportedReasoningEfforts
@@ -966,7 +970,9 @@ const ToggleSwitch: React.FC<{
                                                   checked={m.defaultThinkingEnabled ?? m.thinkingEnabled}
                                                   onChange={checked =>
                                                     updateModel(ep.id, m.id, {
-                                                      defaultThinkingEnabled: checked
+                                                      defaultThinkingEnabled: checked,
+                                                      thinkingEnabled: checked,
+                                                      reasoningEffort: checked ? getSelectedReasoningEffort(m) : m.reasoningEffort
                                                     })
                                                   }
                                                   label={label('默认开启', 'Default')}

@@ -6,7 +6,7 @@ export { default as AiAssistant } from './AiAssistant';
 export { useFloatingPanel } from './useFloatingPanel';
 export { useResolvedTheme } from './useResolvedTheme';
 export type { AssistantTheme } from './useResolvedTheme';
-export { default as ModelControls } from './ModelControls';
+export { default as ModelControls, getSelectedReasoningEffort } from './ModelControls';
 export { default as AiSettings } from './AiSettings';
 export { default as EncryptionKeySettings } from './EncryptionKeySettings';
 export { default as SkillSettings } from './SkillSettings';

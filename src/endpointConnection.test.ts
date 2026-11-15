@@ -6,7 +6,7 @@ function response(output: unknown[], status = 'completed') {
   return new Response(JSON.stringify({ id: 'response-test', status, output }), { headers: { 'Content-Type': 'application/json' } });
 }
 
-test('tests an endpoint with fixed prompts, disabled thinking, and no tools or storage', async () => {
+test('tests an endpoint using the current thinking state and no tools or storage', async () => {
   const originalFetch = globalThis.fetch;
   let requestBody: Record<string, unknown> = {};
   globalThis.fetch = Object.assign(async (_url: string | URL | Request, init?: RequestInit) => {
@@ -25,6 +25,16 @@ test('tests an endpoint with fixed prompts, disabled thinking, and no tools or s
     expect(requestBody.stream).toBe(false);
     expect(requestBody.tools).toBeUndefined();
     expect(requestBody.reasoning).toEqual({ effort: 'none' });
+    endpoint.models[0].thinkingEnabled = true;
+    await testEndpointConnection(endpoint, endpoint.models[0]);
+    expect(requestBody.reasoning).toEqual({ effort: 'medium' });
+    expect(requestBody.max_output_tokens).toBe(1024);
+    endpoint.models[0].reasoningEffort = 'high';
+    await testEndpointConnection(endpoint, endpoint.models[0]);
+    expect(requestBody.reasoning).toEqual({ effort: 'high' });
+    endpoint.models[0].thinkingEnabled = false;
+    await testEndpointConnection(endpoint, endpoint.models[0]);
+    expect(requestBody.reasoning).toEqual({ effort: 'none' });
   } finally { globalThis.fetch = originalFetch; }
 });
 
@@ -32,6 +42,7 @@ test('rejects empty replies, tool calls, and incomplete responses', async () => 
   const originalFetch = globalThis.fetch;
   const endpoint = createEndpoint('openai');
   endpoint.endpoint = 'https://example.com/v1';
+  endpoint.models[0].thinkingAvailable = false;
   let requestBody: Record<string, unknown> = {};
   const testOutput = async (output: unknown[], status = 'completed') => {
     globalThis.fetch = Object.assign(async (_url: string | URL | Request, init?: RequestInit) => {

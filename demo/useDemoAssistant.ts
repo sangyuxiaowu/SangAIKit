@@ -1,4 +1,4 @@
-import { createIndexedDbImageStore, createResponsesSender, resolveSelection, useAssistant, type AiConfig, type AiFeatures, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type ResponsesRequestSnapshot, type ResponsesTool } from '../src';
+import { createIndexedDbImageStore, createResponsesSender, getSelectedReasoningEffort, resolveSelection, useAssistant, type AiConfig, type AiFeatures, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type ResponsesRequestSnapshot, type ResponsesTool } from '../src';
 import type { AssistantController, AssistantForkEvent, ToolEvent } from '../src/assistantTypes';
 import type { SessionImage } from '../src/sessionTypes';
 
@@ -47,7 +47,7 @@ export function useDemoAssistant(config: AiConfig, features: Partial<AiFeatures>
         history: events.history, onHistory: events.onHistory,
         supportsVision: model.supportsVision, loadImage: events.loadImage,
         onTool: tool => { if (tool.name === 'generate_image' && tool.status === 'running') generatedImage = undefined; events.onTool(tool.name === 'generate_image' && tool.status === 'success' && generatedImage ? { ...tool, image: generatedImage } : tool); }, tools, maxToolRounds: config.maxToolRounds,
-        ...(model.thinkingAvailable ? { reasoningEffort: model.thinkingEnabled ? model.reasoningEffort : 'none' } : {})
+        ...(model.thinkingAvailable ? { reasoningEffort: model.thinkingEnabled ? getSelectedReasoningEffort(model) : 'none' } : {})
       })(messages, events.signal, events.onText);
     }
   }, storage);
