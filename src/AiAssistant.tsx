@@ -7,7 +7,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Copy,
-  GitBranch,
+  GitFork,
   History,
   Image as ImageIcon,
   ImagePlus,
@@ -599,7 +599,7 @@ export default function AiAssistant({
                                 title={label('从此回复分叉会话', 'Fork conversation from this response')}
                                 aria-label={label('分叉会话', 'Fork conversation')}
                               >
-                                <GitBranch size={13} />
+                                <GitFork size={13} />
                               </button>}
 
                               {/* 左2：图标重新生成 (仅图标，无文字，样式与复制按钮完全一致) */}
