@@ -49,6 +49,17 @@ button { cursor: pointer; }
 .demo-effective { display: grid; gap: 5px; margin-top: 14px; padding: 10px; background: #edf3ef; }
 .demo-effective > span { color: #6c8175; font-size: 10px; font-weight: 700; }
 .demo-effective code { overflow-wrap: anywhere; color: #265746; font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.demo-request-inspector { margin-top: 12px; border: 1px solid #d5e0d9; background: #f8faf8; color: #23332f; }
+.demo-request-inspector > summary { padding: 12px 14px; color: #345b4b; cursor: pointer; font: 700 11px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.demo-request-inspector > p { margin: 0; padding: 0 14px 14px; color: #718078; font-size: 11px; }
+.demo-request-content { display: grid; gap: 12px; padding: 0 14px 14px; }
+.demo-request-content > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid #e0e8e3; }
+.demo-request-content > div span { color: #1c6b56; font: 700 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.demo-request-content code { overflow-wrap: anywhere; color: #53675c; font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.demo-request-content h3 { margin: 0 0 5px; color: #61766a; font-size: 10px; }
+.demo-request-content pre { max-height: 260px; overflow: auto; margin: 0; padding: 10px; background: #edf3ef; color: #2a4337; font: 10px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.demo-request-raw > summary { padding: 6px 0; color: #61766a; cursor: pointer; font-size: 10px; }
+.demo-request-content > small { color: #87958d; font-size: 10px; }
 .demo-model-select { max-width: 130px; border: 0; background: transparent; color: var(--ai-muted); font-size: 10px; }
 .demo-usage { display: grid; place-items: center; width: 22px; height: 22px; border: 2px solid var(--ai-border); border-radius: 50%; color: var(--ai-muted); font-size: 8px; }
 .demo-modal-backdrop { position: fixed; z-index: 240; inset: 0; display: grid; place-items: center; padding: 20px; background: #020817ae; }

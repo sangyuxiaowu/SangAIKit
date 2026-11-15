@@ -1,4 +1,4 @@
-import { createIndexedDbImageStore, createResponsesSender, resolveSelection, useAssistant, type AiConfig, type AiFeatures, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type ResponsesTool } from '../src';
+import { createIndexedDbImageStore, createResponsesSender, resolveSelection, useAssistant, type AiConfig, type AiFeatures, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type ResponsesRequestSnapshot, type ResponsesTool } from '../src';
 import type { AssistantController, AssistantForkEvent, ToolEvent } from '../src/assistantTypes';
 import type { SessionImage } from '../src/sessionTypes';
 
@@ -15,7 +15,7 @@ const storage: AssistantStorage = {
   images
 };
 
-export function useDemoAssistant(config: AiConfig, features: Partial<AiFeatures> = DEMO_FEATURES): AssistantController {
+export function useDemoAssistant(config: AiConfig, features: Partial<AiFeatures> = DEMO_FEATURES, onRequest?: (request: ResponsesRequestSnapshot) => void): AssistantController {
   return useAssistant(async (entries, events) => {
     const { endpoint, model } = resolveSelection(config);
     if (endpoint.id === 'local-demo') {
@@ -42,6 +42,7 @@ export function useDemoAssistant(config: AiConfig, features: Partial<AiFeatures>
       let generatedImage: SessionImage | undefined;
       await createResponsesSender({ baseURL: endpoint.endpoint, apiKey: endpoint.apiKey, model: model.modelId,
         instructions: config.systemPrompt, builtIn: { config, features, loadImage: events.loadImage, saveImage: events.saveImage, onImage: image => { generatedImage ??= image; } },
+        onRequest,
         maxOutputTokens: model.maxTokens, onReasoning: events.onReasoning, onUsage: events.onUsage,
         history: events.history, onHistory: events.onHistory,
         supportsVision: model.supportsVision, loadImage: events.loadImage,

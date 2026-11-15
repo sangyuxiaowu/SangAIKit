@@ -1,7 +1,7 @@
 export { AiChat } from './AiChat';
 export type { AiChatProps, ChatMessage, ChatSender } from './AiChat';
 export { createResponsesSender } from './openai';
-export type { ResponsesConfig, ResponsesTool } from './openai';
+export type { ResponsesConfig, ResponsesRequestSnapshot, ResponsesTool } from './openai';
 export { default as AiAssistant } from './AiAssistant';
 export { useFloatingPanel } from './useFloatingPanel';
 export { useResolvedTheme } from './useResolvedTheme';

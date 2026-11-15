@@ -3,9 +3,10 @@ import { createRoot } from 'react-dom/client';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { Bot, CircleHelp, LayoutDashboard, MessageSquare, Sun, Moon, Monitor } from 'lucide-react';
-import { AiAssistant, AiSettings, ConfigDecryptionError, EncryptionKeySettings, FontSettings, ImageModelSettings, ModelControls, SkillSettings, TokenUsageBar, DEFAULT_SETTINGS, availableImageModels, createBrowserAiStore, createEndpoint, createImageUpload, createKeyBackupCodec, createModel, normalizeConfig, normalizeAiFeatures, resolveSelection, selectModel, sessionUsageSummary, sumUsage, updateActiveModel, useFloatingPanel, type AiConfig, type AiFeatures, type AssistantTheme, type FloatingStore } from '../src';
+import { AiAssistant, AiSettings, ConfigDecryptionError, EncryptionKeySettings, FontSettings, ImageModelSettings, ModelControls, SkillSettings, TokenUsageBar, DEFAULT_SETTINGS, availableImageModels, createBrowserAiStore, createEndpoint, createImageUpload, createKeyBackupCodec, createModel, normalizeConfig, normalizeAiFeatures, resolveSelection, selectModel, sessionUsageSummary, sumUsage, updateActiveModel, useFloatingPanel, type AiConfig, type AiFeatures, type AssistantTheme, type FloatingStore, type ResponsesRequestSnapshot } from '../src';
 import { DEMO_FEATURES, forkDemoConversation, loadDemoImage, useDemoAssistant } from './useDemoAssistant';
 import DemoIntegrationSettings from './DemoIntegrationSettings';
+import DemoRequestInspector, { redactRequestSnapshot } from './DemoRequestInspector';
 import './demo.css';
 
 const floatingStore: FloatingStore = {
@@ -48,13 +49,14 @@ function Demo() {
   const [accent, setAccent] = useState('#10b981');
   const [open, setOpen] = useState(true);
   const [features, setFeatures] = useState(initialFeatures);
+  const [lastRequest, setLastRequest] = useState<ReturnType<typeof redactRequestSnapshot> | null>(null);
   const [config, setConfig] = useState(initialConfig);
   const configRef = useRef(config);
   configRef.current = config;
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState('');
   const [keyError, setKeyError] = useState(false);
-  const baseAssistant = useDemoAssistant(config, features);
+  const baseAssistant = useDemoAssistant(config, features, (request: ResponsesRequestSnapshot) => setLastRequest(redactRequestSnapshot(request)));
   const reloadConfig = async () => {
     setConfigLoading(true);
     setConfigError('');
@@ -88,6 +90,7 @@ function Demo() {
       <div className="demo-content"><div className="demo-content-heading"><div><span className="demo-eyebrow">WORKSPACE / DEMO</span><h1>工作区</h1></div><span className="demo-live"><i /> 本地演示</span></div><div className="demo-document"><div className="demo-document-top"><span>项目概览</span><span>01 / 03</span></div><h2>从想法开始</h2><p>在工作区中整理想法，与 AI 助手协作。</p><div className="demo-rule" /><div className="demo-lines"><span /><span /><span /></div></div>
         <DemoIntegrationSettings features={features} onFeaturesChange={updateFeatures} maxToolRounds={config.maxToolRounds ?? DEFAULT_SETTINGS.maxToolRounds} maxImageFailures={config.maxImageFailures ?? DEFAULT_SETTINGS.maxImageFailures}
           onLimitChange={updateLimit} validImageModelCount={availableImageModels(config).length} skillCount={config.skills?.length ?? 0} onReset={resetIntegration} />
+        <DemoRequestInspector request={lastRequest} />
       </div>
     </div>
     <AiAssistant assistant={assistant} floating={floating} language="zh" theme={theme} open={open} onOpenChange={setOpen}

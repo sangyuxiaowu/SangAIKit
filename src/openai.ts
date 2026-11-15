@@ -17,6 +17,11 @@ export interface ResponsesTool {
   execute: (argumentsObject: Record<string, unknown>, signal: AbortSignal) => Promise<unknown>;
 }
 
+export interface ResponsesRequestSnapshot {
+  endpoint: string;
+  body: Readonly<Record<string, unknown>>;
+}
+
 export interface ResponsesConfig {
   baseURL: string;
   apiKey: string;
@@ -30,6 +35,7 @@ export interface ResponsesConfig {
   onTool?: (tool: ToolEvent) => void;
   maxToolRounds?: number;
   timeoutMs?: number;
+  onRequest?: (request: ResponsesRequestSnapshot) => void;
   history?: unknown[];
   onHistory?: (items: unknown[]) => void;
   supportsVision?: boolean;
@@ -93,13 +99,15 @@ export function createResponsesSender(config: ResponsesConfig): ChatSender {
         if (signal.aborted) abortRequest();
         const timeout = setTimeout(() => requestController.abort(new Error('AI request timed out.')), timeoutMs);
         try {
-          const stream = await client.responses.create({
-            model: config.model, instructions, input: await prepareInput(history, config.supportsVision !== false, config.loadImage ?? config.builtIn?.loadImage), stream: true, store: false,
+          const requestBody = {
+            model: config.model, instructions, input: await prepareInput(history, config.supportsVision !== false, config.loadImage ?? config.builtIn?.loadImage), stream: true as const, store: false,
             ...(tools.length ? { tools: tools.map(tool => ({ type: 'function' as const, name: tool.name, description: tool.description, parameters: tool.parameters, strict: false })) } : {}),
             ...(url.hostname === 'api.openai.com' ? { include: ['reasoning.encrypted_content' as const] } : {}),
             ...(config.reasoningEffort ? { reasoning: { effort: config.reasoningEffort } } : {}),
             ...(config.maxOutputTokens ? { max_output_tokens: config.maxOutputTokens } : {})
-          }, { signal: requestController.signal });
+          };
+          config.onRequest?.({ endpoint: `${url.toString().replace(/\/$/, '')}/responses`, body: requestBody });
+          const stream = await client.responses.create(requestBody, { signal: requestController.signal });
           let streamedText = '';
           const response = await readResponse(stream, chunk => { streamedText += chunk; onText(chunk); }, requestController.signal, config.onReasoning);
           const completedAt = Date.now();

@@ -11,7 +11,7 @@ bun install
 bun run dev
 ```
 
-演示支持会话新建、切换、重命名和删除、窗口拖动及缩放、多端点模型、图片附件、SKILL、生图、工具步骤、用量、浅色和深色。工作区中的接入配置面板可实时切换宿主功能、调整调用上限，并预览实际注册的工具；模型与限制保存在配置存储，接入开关单独保存在浏览器 localStorage。演示初始不添加生图模型；需在 AI 配置中心的“生图模型”页手动选择预设、绑定端点并启用，之后才会注册生图工具。默认模型使用模拟回复和模拟工具，不访问远端；会话文本保存在浏览器 localStorage，图片保存在 IndexedDB。选择真实模型并配置兼容 Responses API 的端点后，可调用真实模型及配置的生图服务，可能产生费用。
+演示支持会话新建、切换、重命名和删除、窗口拖动及缩放、多端点模型、图片附件、SKILL、生图、工具步骤、用量、浅色和深色。工作区中的接入配置面板可实时切换宿主功能、调整调用上限，并预览实际注册的工具；模型与限制保存在配置存储，接入开关单独保存在浏览器 localStorage。演示初始不添加生图模型；需在 AI 配置中心的“生图模型”页手动选择预设、绑定端点并启用，之后才会注册生图工具。使用真实模型发送请求后，可在工作区展开“最近的实际网络请求”，查看实际 URL、最终 instructions、工具签名和请求 JSON；图片 Base64 会脱敏，本地模拟回复不会产生网络请求。默认模型使用模拟回复和模拟工具，不访问远端；会话文本保存在浏览器 localStorage，图片保存在 IndexedDB。选择真实模型并配置兼容 Responses API 的端点后，可调用真实模型及配置的生图服务，可能产生费用。
 
 演示将配置和 AES-GCM 加密后的 API Key 保存在 IndexedDB，须主动创建或导入主密钥；创建后可以下载口令保护的备份。主密钥不可导出，但运行时解密后的密钥仍可能被页面脚本读取，不能抵御设备或页面上的所有攻击。真实请求受跨域限制；公开生产环境建议把密钥和模型调用放在后端。
 
@@ -47,6 +47,8 @@ bun run dev
 本地链接存在多份 React 时，Vite 宿主需设置 `resolve.dedupe: ['react', 'react-dom']`。本地路径要求每台开发机和 CI 有相同目录结构，不能独立克隆宿主后直接安装。链接或复制行为由安装器决定，修改组件后若未更新请重新安装依赖。
 
 `AiAssistant` 接收 `AssistantController`、浮窗控制、模型信息，以及 Markdown、设置、用量、模型控件等插槽。`AiSettings` 接收配置与校验操作，生图、SKILL、字体、抠图和密钥面板按宿主能力注入；未提供的能力不显示。`useFloatingPanel` 接收位置存储接口；`useAssistant` 和 `createResponsesSender` 提供通用会话与 Responses 适配。可直接从演示适配器开始：`demo/main.tsx` 管理配置与界面，`demo/useDemoAssistant.ts` 注册工作区、SKILL 和生图工具。
+
+`createResponsesSender` 可选接收 `onRequest({ endpoint, body })` 观察器，在每次请求发送前报告最终 Responses URL 与 JSON body；快照不包含 HTTP headers 或 API Key。它适合诊断最终 instructions、工具 Schema 和上下文输入。生产宿主接入时应自行决定是否记录、展示或脱敏其中的用户消息与附件数据；demo 检查器会脱敏图像 Base64。
 
 对话数据的所有权由调用方决定。使用 `useAssistant(runner, storage)` 时必须传入存储适配器；`AssistantStorage` 是通用接口，不代表组件会自动选择或创建持久化位置。宿主可接入自己的 IndexedDB、文件或服务端存储。消息上的分叉入口只有在传入 `onFork` 时显示；点击后只回调 `{ sessionId, entryId, responseItemCount? }`，不在共享组件内创建会话或复制图片。宿主负责验证标记、截断对应消息与 Responses 历史、复制引用图片并保存新会话。重新生成入口只会出现在最后一条 AI 回复上；通用控制器仅允许无工具副作用的安全重做，具有画布等外部状态的宿主应自行提供可验证的恢复能力。
 

@@ -23,6 +23,24 @@ test('sends message history and streams text without storing the response', asyn
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('reports the exact Responses endpoint and request body without exposing credentials', async () => {
+  const originalFetch = globalThis.fetch;
+  let actualBody: Record<string, unknown> = {};
+  let observed: { endpoint: string; body: Readonly<Record<string, unknown>> } | undefined;
+  globalThis.fetch = Object.assign(async (target: string | URL | Request, init?: RequestInit) => {
+    actualBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    expect(String(target)).toContain('/responses');
+    return new Response('event: response.completed\ndata: {"type":"response.completed","response":{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"OK"}]}]}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
+  }, { preconnect: originalFetch.preconnect }) as typeof fetch;
+  try {
+    const send = createResponsesSender({ baseURL: 'https://example.com/v1', apiKey: 'secret-key', model: 'model', instructions: 'Final instructions', onRequest: request => { observed = request; } });
+    await send([{ role: 'user', content: 'Say OK' }], new AbortController().signal, () => {});
+    expect(observed?.endpoint).toBe('https://example.com/v1/responses');
+    expect(observed?.body).toEqual(actualBody);
+    expect(JSON.stringify(observed)).not.toContain('secret-key');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('uses completed response text when no deltas arrive', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = Object.assign(async () => new Response('event: response.completed\ndata: {"type":"response.completed","response":{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"Done"}]}]}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } }), { preconnect: originalFetch.preconnect });
