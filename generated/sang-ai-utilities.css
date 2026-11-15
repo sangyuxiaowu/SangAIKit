@@ -135,11 +135,11 @@
     --color-slate-800: oklch(27.9% .041 260.031);
     --color-slate-900: oklch(20.8% .042 265.755);
     --color-slate-950: oklch(12.9% .042 264.695);
+    --color-black: #000;
     --color-white: #fff;
     --spacing: .25rem;
     --container-sm: 24rem;
     --container-md: 28rem;
-    --container-lg: 32rem;
     --container-2xl: 42rem;
     --container-4xl: 56rem;
     --text-xs: .75rem;
@@ -551,16 +551,16 @@
     z-index: 120;
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .z-\[130\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).z-\[130\] {
+    z-index: 130;
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .z-\[150\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).z-\[150\] {
     z-index: 150;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .z-\[240\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).z-\[240\] {
     z-index: 240;
-  }
-
-:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .z-\[250\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).z-\[250\] {
-    z-index: 250;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .mx-3, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).mx-3 {
@@ -730,6 +730,14 @@
     height: 88vh;
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .h-\[min\(72dvh\,720px\)\],:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).h-\[min\(72dvh\,720px\)\] {
+    height: min(72dvh, 720px);
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .h-auto, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).h-auto {
+    height: auto;
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .h-full, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).h-full {
     height: 100%;
   }
@@ -746,12 +754,8 @@
     max-height: calc(var(--spacing) * 64);
   }
 
-:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-h-\[55vh\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-h-\[55vh\] {
-    max-height: 55vh;
-  }
-
-:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-h-\[60vh\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-h-\[60vh\] {
-    max-height: 60vh;
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-h-\[84dvh\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-h-\[84dvh\] {
+    max-height: 84dvh;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-h-\[84vh\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-h-\[84vh\] {
@@ -768,6 +772,10 @@
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-h-\[880px\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-h-\[880px\] {
     max-height: 880px;
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-h-full, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-h-full {
+    max-height: 100%;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .min-h-0, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).min-h-0 {
@@ -830,8 +838,16 @@
     width: calc(var(--spacing) * 64);
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .w-\[92vw\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).w-\[92vw\] {
+    width: 92vw;
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .w-\[330px\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).w-\[330px\] {
     width: 330px;
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .w-auto, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).w-auto {
+    width: auto;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .w-full, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).w-full {
@@ -870,10 +886,6 @@
     max-width: 100%;
   }
 
-:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-w-lg, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-w-lg {
-    max-width: var(--container-lg);
-  }
-
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .max-w-md, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).max-w-md {
     max-width: var(--container-md);
   }
@@ -888,6 +900,10 @@
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .flex-1, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).flex-1 {
     flex: 1;
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .flex-none, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).flex-none {
+    flex: none;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .shrink-0, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).shrink-0 {
@@ -1510,10 +1526,6 @@
     background-color: #070a0f;
   }
 
-:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-\[\#05070a\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-\[\#05070a\] {
-    background-color: #05070a;
-  }
-
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-amber-400, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-amber-400 {
     background-color: var(--color-amber-400);
   }
@@ -1573,6 +1585,16 @@
 @supports (color: color-mix(in lab, red, red)) {
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-amber-700\/80, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-amber-700\/80 {
       background-color: color-mix(in oklab, var(--color-amber-700) 80%, transparent);
+    }
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-black\/70, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-black\/70 {
+    background-color: #000000b3;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-black\/70, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-black\/70 {
+      background-color: color-mix(in oklab, var(--color-black) 70%, transparent);
     }
   }
 
@@ -1668,16 +1690,6 @@
     }
   }
 
-:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-blue-950\/40, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-blue-950\/40 {
-    background-color: #16245666;
-  }
-
-@supports (color: color-mix(in lab, red, red)) {
-    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-blue-950\/40, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-blue-950\/40 {
-      background-color: color-mix(in oklab, var(--color-blue-950) 40%, transparent);
-    }
-  }
-
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-cyan-400, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-cyan-400 {
     background-color: var(--color-cyan-400);
   }
@@ -1747,6 +1759,16 @@
 @supports (color: color-mix(in lab, red, red)) {
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-emerald-950\/25, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-emerald-950\/25 {
       background-color: color-mix(in oklab, var(--color-emerald-950) 25%, transparent);
+    }
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-emerald-950\/40, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-emerald-950\/40 {
+    background-color: #002c2266;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-emerald-950\/40, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-emerald-950\/40 {
+      background-color: color-mix(in oklab, var(--color-emerald-950) 40%, transparent);
     }
   }
 
@@ -2077,6 +2099,16 @@
 @supports (color: color-mix(in lab, red, red)) {
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-slate-950\/60, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-slate-950\/60 {
       background-color: color-mix(in oklab, var(--color-slate-950) 60%, transparent);
+    }
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-slate-950\/65, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-slate-950\/65 {
+    background-color: #020618a6;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-slate-950\/65, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-slate-950\/65 {
+      background-color: color-mix(in oklab, var(--color-slate-950) 65%, transparent);
     }
   }
 
@@ -2500,10 +2532,6 @@
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .py-2\.5, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).py-2\.5 {
     padding-block: calc(var(--spacing) * 2.5);
-  }
-
-:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .py-3, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).py-3 {
-    padding-block: calc(var(--spacing) * 3);
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .py-4, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).py-4 {
@@ -3978,8 +4006,16 @@
       aspect-ratio: 1;
     }
 
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:h-\[min\(68dvh\,720px\)\],:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:h-\[min\(68dvh\,720px\)\] {
+      height: min(68dvh, 720px);
+    }
+
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:min-h-\[520px\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:min-h-\[520px\] {
       min-height: 520px;
+    }
+
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:w-\[min\(56vw\,900px\)\],:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:w-\[min\(56vw\,900px\)\] {
+      width: min(56vw, 900px);
     }
 
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:grid-cols-2, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:grid-cols-2 {
@@ -4002,6 +4038,10 @@
       align-self: center;
     }
 
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:p-4, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:p-4 {
+      padding: calc(var(--spacing) * 4);
+    }
+
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:p-5, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:p-5 {
       padding: calc(var(--spacing) * 5);
     }
@@ -4018,8 +4058,16 @@
       padding-inline: calc(var(--spacing) * 3.5);
     }
 
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:px-5, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:px-5 {
+      padding-inline: calc(var(--spacing) * 5);
+    }
+
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:px-6, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:px-6 {
       padding-inline: calc(var(--spacing) * 6);
+    }
+
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:py-3, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:py-3 {
+      padding-block: calc(var(--spacing) * 3);
     }
 
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:opacity-0, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:opacity-0 {

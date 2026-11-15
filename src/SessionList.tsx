@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Check,
   Image as ImageIcon,
@@ -331,6 +332,15 @@ export default function SessionList({
     });
     setImageUrls({ ...cachedUrls.current });
   }, [allGalleryItems]);
+
+  useEffect(() => {
+    if (!previewingImage) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPreviewingImage(null);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [previewingImage]);
 
   // 下载保存图片
   const handleSaveImage = (item: GalleryItem, e?: React.MouseEvent) => {
@@ -686,15 +696,18 @@ export default function SessionList({
 
         {/* 大图预览与详细保存浮窗 */}
         {previewingImage && (
-          <div
-            className="fixed inset-0 z-[250] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
+          createPortal(<div
+            className="sang-ai-portal fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/65 p-2 backdrop-blur-sm animate-in fade-in duration-150 sm:p-4"
             onClick={() => setPreviewingImage(null)}
           >
             <div
-              className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl flex flex-col"
+              role="dialog"
+              aria-modal="true"
+              aria-label={previewingImage.name}
+              className="flex h-[min(72dvh,720px)] max-h-[84dvh] w-[92vw] flex-col overflow-hidden rounded-2xl bg-slate-950 shadow-2xl sm:h-[min(68dvh,720px)] sm:w-[min(56vw,900px)]"
               onClick={e => e.stopPropagation()}
             >
-              <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex flex-none items-center justify-between gap-3 border-b border-slate-800 bg-slate-900 px-3 py-2 sm:px-5 sm:py-3">
                 <div className="min-w-0 pr-3">
                   <h4 className="text-xs font-bold text-slate-100 truncate">{previewingImage.name}</h4>
                   <div className="text-[10px] text-slate-400 flex items-center gap-2 mt-0.5">
@@ -707,21 +720,23 @@ export default function SessionList({
                   type="button"
                   onClick={() => setPreviewingImage(null)}
                   className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  aria-label={label('关闭预览', 'Close preview')}
+                  title={label('关闭预览', 'Close preview')}
                 >
                   <X size={16} />
                 </button>
               </div>
 
-              <div className="p-4 bg-[#05070a] flex items-center justify-center max-h-[60vh] overflow-hidden">
+              <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-black/70 p-1 sm:p-4">
                 <img
                   src={previewingImage.url}
                   alt={previewingImage.name}
-                  className="max-h-[55vh] max-w-full object-contain rounded-lg shadow-md"
+                  className="block h-auto max-h-full w-auto max-w-full object-contain"
                 />
               </div>
 
-              <div className="px-4 py-3 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between gap-2">
-                <span className="text-[11px] text-slate-400 truncate">
+              <div className="flex flex-none flex-wrap items-center justify-between gap-2 border-t border-slate-800 bg-slate-900 px-3 py-2 sm:px-5 sm:py-3">
+                <span className="min-w-0 flex-1 truncate text-[11px] text-slate-400">
                   {previewingImage.category === 'generated'
                     ? label('AI 生成图片', 'AI Generated')
                     : previewingImage.category === 'preview'
@@ -767,7 +782,7 @@ export default function SessionList({
                 </div>
               </div>
             </div>
-          </div>
+          </div>, document.body)
         )}
       </section>
     );
