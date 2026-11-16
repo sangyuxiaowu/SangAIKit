@@ -1,10 +1,11 @@
 import type { ResponsesTool } from './openai';
-import type { AiSkillConfig } from './settingsTypes';
+import type { AiConfig, AiSkillConfig } from './settingsTypes';
 import type { ImagePromptConfig } from './image-generation/types';
 import { imageCapabilities, imageModelToolId } from './image-generation/index';
 import { normalizeAiFeatures, type AiFeatures } from './features';
 import { backgroundRemovalDefinition } from './background-removal/tool';
 import { extendImageToolDefinition, type ImageToolExtensions } from './imageToolHost';
+import { normalizeLocalFonts } from './fonts';
 
 export type BuiltInToolDefinition = Pick<ResponsesTool, 'name' | 'description' | 'parameters'>;
 
@@ -41,16 +42,22 @@ export function imageToolDefinitions(models: ImagePromptConfig[] = []): BuiltInT
 export function builtInToolDefinitions(options: {
   features?: Partial<AiFeatures>;
   skills?: AiSkillConfig[];
+  config?: Partial<AiConfig>;
   imageModels?: ImagePromptConfig[];
   imageStorage?: boolean;
   imageExtensions?: ImageToolExtensions;
 } = {}): BuiltInToolDefinition[] {
   const features = normalizeAiFeatures(options.features);
   const skills = features.skills ? options.skills ?? [] : [];
+  const fonts = features.fontManagement ? normalizeLocalFonts(options.config?.localFonts) : [];
+  const fontSources = [
+    ...(fonts.length ? ['用户提供的本地字体'] : []),
+    ...(features.onlineFonts ? ['内置 Google Fonts 精选目录'] : [])
+  ];
   return [
     ...(features.backgroundRemoval && (options.imageStorage || options.imageExtensions?.remove_background)
       ? [extendImageToolDefinition(backgroundRemovalDefinition, options.imageExtensions?.remove_background)] : []),
-    ...(features.fontManagement ? [{ name: 'list_fonts', description: '读取用户提供的本地字体及内置 Google Fonts 精选目录，使用 family 设置字体。', parameters: { type: 'object', properties: {} } }] : []),
+    ...(features.fontManagement && fontSources.length ? [{ name: 'list_fonts', description: `读取${fontSources.join('及')}，使用 family 设置字体。`, parameters: { type: 'object', properties: {} } }] : []),
     ...(skills.length ? [{ name: 'skill', description: '读取 SKILL。', parameters: { type: 'object', properties: {
       name: { type: 'string', description: 'SKILL 精确名称，来自 available_skills 列表。', enum: skills.map(skill => skill.name) }
     }, required: ['name'] } }] : []),

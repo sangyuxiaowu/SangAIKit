@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { createBuiltInTools, type ImageToolExtension } from './builtInTools';
+import { builtInToolDefinitions, createBuiltInTools, type ImageToolExtension } from './builtInTools';
 import { createEndpoint } from './modelConfig';
 import { createImageModel, imageModelToolId } from './image-generation/index';
 import type { AiConfig } from './settingsTypes';
@@ -28,13 +28,46 @@ test('registers built-in tools independently and keeps disabled configuration', 
   expect(value.localFonts).toHaveLength(1);
 });
 
-test('online fonts are optional when font management is enabled', async () => {
-  for (const onlineFonts of [false, true]) {
-    const builtIn = createBuiltInTools({ ...options(config()), features: { fontManagement: true, onlineFonts } });
-    const fonts = await builtIn.tools.find(tool => tool.name === 'list_fonts')!.execute({}, new AbortController().signal) as { source: string }[];
-    expect(fonts.filter(font => font.source === 'local')).toHaveLength(1);
+for (const fontManagement of [false, true]) for (const onlineFonts of [false, true]) for (const hasLocalFonts of [false, true]) {
+  test(`font tool registration, description and results match enabled sources: management=${fontManagement}, online=${onlineFonts}, local=${hasLocalFonts}`, async () => {
+    const value = config();
+    if (!hasLocalFonts) value.localFonts = [];
+    const features = { fontManagement, onlineFonts };
+    const builtIn = createBuiltInTools({ ...options(value), features });
+    const tool = builtIn.tools.find(tool => tool.name === 'list_fonts');
+    const definition = builtInToolDefinitions({ features, config: value }).find(tool => tool.name === 'list_fonts');
+    const registered = fontManagement && (hasLocalFonts || onlineFonts);
+    expect(Boolean(tool)).toBe(registered);
+    expect(Boolean(definition)).toBe(registered);
+    if (!tool) return;
+    const { execute, ...schema } = tool;
+    expect(schema).toEqual(definition!);
+    expect(tool.description.includes('本地字体')).toBe(hasLocalFonts);
+    expect(tool.description.includes('Google Fonts')).toBe(onlineFonts);
+    expect(tool.parameters).toEqual({ type: 'object', properties: {} });
+    const fonts = await execute({}, new AbortController().signal) as { source: string }[];
+    expect(fonts.filter(font => font.source === 'local')).toHaveLength(hasLocalFonts ? 1 : 0);
     expect(fonts.filter(font => font.source === 'google')).toHaveLength(onlineFonts ? 9 : 0);
-  }
+    await expect(execute({ query: 'font' }, new AbortController().signal)).rejects.toThrow('does not accept parameters');
+  });
+}
+
+test('font tool uses the turn configuration snapshot without adding prompt text', async () => {
+  const value = config();
+  const selectedFonts = value.localFonts!;
+  value.localFonts = [];
+  const features = { fontManagement: true, onlineFonts: false };
+  const withoutFonts = createBuiltInTools({ ...options(value), features });
+  value.localFonts = selectedFonts;
+  const withFonts = createBuiltInTools({ ...options(value), features });
+  const tool = withFonts.tools.find(item => item.name === 'list_fonts');
+  expect(withoutFonts.tools.some(item => item.name === 'list_fonts')).toBe(false);
+  expect(tool).toBeDefined();
+  expect(withFonts.instructions).toBe(withoutFonts.instructions);
+  selectedFonts[0].family = 'Changed';
+  value.localFonts = [];
+  const fonts = await tool!.execute({}, new AbortController().signal) as { family: string }[];
+  expect(fonts.map(font => font.family)).toEqual(['Local Font']);
 });
 
 test('registers background removal only with both image storage callbacks', () => {

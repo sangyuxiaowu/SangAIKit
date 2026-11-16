@@ -25,7 +25,7 @@
 
 显式提供可选 `builtIn` 配置时，`createResponsesSender` 才会调用 `createBuiltInTools` 生成本轮独立工具实例。宿主也可直接调用工厂，将原样的工具定义及 `execute` 接入自己的调度器；不重复声明同名工具，同名合并会报错。工具说明和参数说明统一使用中文，机器字段名保持英文。
 
-1. **`list_fonts`**：查询可用字体资源（包含 Google Fonts 开源字体与用户在字体管理中添加的本地系统字体及用途备注）。
+1. **`list_fonts`**：字体管理开启且已选择本地字体或启用在线字体时注册；两种来源都不可用时不注册。函数仍无参数，中文描述按实际来源展示本地字体、Google Fonts 精选目录或两者，返回内容与描述一致。需要单独获取工具定义时，将已有 `config` 和 `features` 传给 `builtInToolDefinitions`，由组件读取所需配置并生成与执行器一致的定义，不额外注入提示词。
 2. **`skill`**：按技能名称按需读取某项 SKILL 的完整 Markdown 规则全文，避免在每轮对话中全量塞入所有长篇规范以节省 Token。
 3. **`generate_image`**：调用已启用的生图模型（支持 `kolors`、`agnes`、`gpt-image`），支持文本生图与参考图重绘（引用会话中的 `attachment://` 图片 ID），生成结果自动写入 `saveImage` 并关联至工具事件卡片。
 4. **`list_image_models`**：仅多个可用生图模型时注册，返回模型介绍、版本及能力。单模型省略 `modelConfigId`，按能力裁剪尺寸、比例、质量和数量参数；多模型使用短模型 ID 选择。

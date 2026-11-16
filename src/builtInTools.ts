@@ -32,7 +32,7 @@ export function createBuiltInTools(options: BuiltInToolOptions): { tools: Respon
   const imageModels = features.imageGeneration && ((options.loadImage && options.saveImage) || options.imageExtensions?.generate_image) ? availableImageModels(config) : [];
   let failures = 0;
   const applicationFailures = new Set<string>();
-  const tools: ResponsesTool[] = builtInToolDefinitions({ features, skills, imageModels, imageStorage: Boolean(options.loadImage && options.saveImage), imageExtensions: options.imageExtensions }).map(definition => ({
+  const tools: ResponsesTool[] = builtInToolDefinitions({ features, config, skills, imageModels, imageStorage: Boolean(options.loadImage && options.saveImage), imageExtensions: options.imageExtensions }).map(definition => ({
     ...definition,
     execute: async (args, signal) => {
       signal.throwIfAborted();
