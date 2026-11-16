@@ -32,6 +32,12 @@ export { MAX_SKILLS, MAX_SKILL_CONTENT, normalizeSkills, skillsPrompt, readSkill
 export { DEFAULT_AI_FEATURES, normalizeAiFeatures } from './features';
 export { createBuiltInTools } from './builtInTools';
 export type { BuiltInToolOptions } from './builtInTools';
+export { applyColorMatting, removeColorBackground } from './background-removal/colorMatting';
+export type { BrushStroke, MattingOptions } from './background-removal/colorMatting';
+export { default as ColorMattingEditor } from './background-removal/ColorMattingEditor';
+export type { ColorMattingEditorProps } from './background-removal/ColorMattingEditor';
+export { createBackgroundRemovalTool } from './background-removal/tool';
+export { configureBackgroundRemovalStorage } from './background-removal/storage';
 export type { AiFeatures } from './features';
 export { generateImages, availableImageModels, validateImageModel, imageCapabilities, createImageModel, IMAGE_MODEL_PRESETS } from './image-generation/index';
 export type { GenerateImageInput, ImageQuality, ImageModelConfig } from './image-generation/types';

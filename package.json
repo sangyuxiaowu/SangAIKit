@@ -37,6 +37,7 @@
     "./image-types": "./src/image-generation/types.ts",
     "./image-settings": "./src/ImageModelSettings.tsx",
     "./image-attachments": "./src/imageAttachments.ts",
+    "./background-removal/*": "./src/background-removal/*",
     "./fonts": "./src/fonts.ts",
     "./font-settings": "./src/FontSettings.tsx",
     "./token-usage": "./src/TokenUsageBar.tsx",

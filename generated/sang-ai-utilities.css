@@ -531,6 +531,10 @@
     left: calc(var(--spacing) * 3.5);
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .isolate, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).isolate {
+    isolation: isolate;
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .z-10, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).z-10 {
     z-index: 10;
   }
@@ -561,6 +565,10 @@
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .z-\[240\], :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).z-\[240\] {
     z-index: 240;
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .\!m-0, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).\!m-0 {
+    margin: 0 !important;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .mx-3, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).mx-3 {
@@ -599,12 +607,20 @@
     margin-right: var(--spacing);
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .mr-1\.5, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).mr-1\.5 {
+    margin-right: calc(var(--spacing) * 1.5);
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .mr-2, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).mr-2 {
     margin-right: calc(var(--spacing) * 2);
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .mr-auto, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).mr-auto {
     margin-right: auto;
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .\!mb-0, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).\!mb-0 {
+    margin-bottom: 0 !important;
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .mb-1, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).mb-1 {
@@ -1328,6 +1344,16 @@
     }
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .border-blue-500\/50, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).border-blue-500\/50 {
+    border-color: #3080ff80;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .border-blue-500\/50, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).border-blue-500\/50 {
+      border-color: color-mix(in oklab, var(--color-blue-500) 50%, transparent);
+    }
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .border-emerald-500\/20, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).border-emerald-500\/20 {
     border-color: #00bb7f33;
   }
@@ -1687,6 +1713,16 @@
 @supports (color: color-mix(in lab, red, red)) {
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-blue-950\/20, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-blue-950\/20 {
       background-color: color-mix(in oklab, var(--color-blue-950) 20%, transparent);
+    }
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-blue-950\/40, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-blue-950\/40 {
+    background-color: #16245666;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-blue-950\/40, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-blue-950\/40 {
+      background-color: color-mix(in oklab, var(--color-blue-950) 40%, transparent);
     }
   }
 
@@ -2170,6 +2206,11 @@
     }
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-gradient-to-b, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-gradient-to-b {
+    --sang-ai-tw-gradient-position: to bottom in oklab;
+    background-image: linear-gradient(var(--sang-ai-tw-gradient-stops));
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .bg-gradient-to-br, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).bg-gradient-to-br {
     --sang-ai-tw-gradient-position: to bottom right in oklab;
     background-image: linear-gradient(var(--sang-ai-tw-gradient-stops));
@@ -2191,6 +2232,11 @@
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .from-amber-950\/20, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).from-amber-950\/20 {
+    --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .from-blue-500, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).from-blue-500 {
+    --sang-ai-tw-gradient-from: var(--color-blue-500);
     --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
   }
 
@@ -2224,6 +2270,20 @@
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .from-blue-600\/25, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).from-blue-600\/25 {
+    --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .from-blue-950\/25, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).from-blue-950\/25 {
+    --sang-ai-tw-gradient-from: #16245640;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .from-blue-950\/25, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).from-blue-950\/25 {
+      --sang-ai-tw-gradient-from: color-mix(in oklab, var(--color-blue-950) 25%, transparent);
+    }
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .from-blue-950\/25, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).from-blue-950\/25 {
     --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
   }
 
@@ -2348,6 +2408,11 @@
     --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .to-indigo-500, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).to-indigo-500 {
+    --sang-ai-tw-gradient-to: var(--color-indigo-500);
+    --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .to-indigo-500\/10, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).to-indigo-500\/10 {
     --sang-ai-tw-gradient-to: #625fff1a;
   }
@@ -2392,6 +2457,20 @@
   }
 
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .to-indigo-950\/20, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).to-indigo-950\/20 {
+    --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .to-slate-900\/70, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).to-slate-900\/70 {
+    --sang-ai-tw-gradient-to: #0f172bb3;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .to-slate-900\/70, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).to-slate-900\/70 {
+      --sang-ai-tw-gradient-to: color-mix(in oklab, var(--color-slate-900) 70%, transparent);
+    }
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .to-slate-900\/70, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).to-slate-900\/70 {
     --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
   }
 
@@ -2748,6 +2827,10 @@
     overflow-wrap: break-word;
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .break-all, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).break-all {
+    word-break: break-all;
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .whitespace-nowrap, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).whitespace-nowrap {
     white-space: nowrap;
   }
@@ -2922,6 +3005,10 @@
     font-style: italic;
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .underline-offset-4, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).underline-offset-4 {
+    text-underline-offset: 4px;
+  }
+
 :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .accent-amber-500, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).accent-amber-500 {
     accent-color: var(--color-amber-500);
   }
@@ -3068,6 +3155,16 @@
 @supports (color: color-mix(in lab, red, red)) {
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .shadow-blue-600\/40, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).shadow-blue-600\/40 {
       --sang-ai-tw-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-blue-600) 40%, transparent) var(--sang-ai-tw-shadow-alpha), transparent);
+    }
+  }
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .shadow-blue-900\/20, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).shadow-blue-900\/20 {
+    --sang-ai-tw-shadow-color: #1c398e33;
+  }
+
+@supports (color: color-mix(in lab, red, red)) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .shadow-blue-900\/20, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).shadow-blue-900\/20 {
+      --sang-ai-tw-shadow-color: color-mix(in oklab, color-mix(in oklab, var(--color-blue-900) 20%, transparent) var(--sang-ai-tw-shadow-alpha), transparent);
     }
   }
 
@@ -3358,6 +3455,10 @@
     user-select: text;
   }
 
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) :is(:where(.group):is([open], :popover-open, :open) .group-open\:text-slate-200) {
+    color: var(--color-slate-200);
+  }
+
 @media (hover: hover) {
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) :is(:where(.group):hover .group-hover\:translate-x-0\.5) {
       --sang-ai-tw-translate-x: calc(var(--spacing) * .5);
@@ -3437,7 +3538,7 @@
       text-decoration-line: underline;
     }
 
-    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) :is(:where(.group):hover .group-hover\:opacity-100) {
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) :is(:where(.group):hover .group-hover\:opacity-100), :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) :is(:where(.group\/link):hover .group-hover\/link\:opacity-100) {
       opacity: 1;
     }
   }
@@ -3672,6 +3773,16 @@
       }
     }
 
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .hover\:bg-rose-500\/20:hover, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).hover\:bg-rose-500\/20:hover {
+      background-color: #ff235733;
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .hover\:bg-rose-500\/20:hover, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).hover\:bg-rose-500\/20:hover {
+        background-color: color-mix(in oklab, var(--color-rose-500) 20%, transparent);
+      }
+    }
+
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .hover\:bg-slate-700:hover, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).hover\:bg-slate-700:hover {
       background-color: var(--color-slate-700);
     }
@@ -3768,6 +3879,10 @@
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .hover\:to-indigo-500:hover, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).hover\:to-indigo-500:hover {
       --sang-ai-tw-gradient-to: var(--color-indigo-500);
       --sang-ai-tw-gradient-stops: var(--sang-ai-tw-gradient-via-stops, var(--sang-ai-tw-gradient-position), var(--sang-ai-tw-gradient-from) var(--sang-ai-tw-gradient-from-position), var(--sang-ai-tw-gradient-to) var(--sang-ai-tw-gradient-to-position));
+    }
+
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .hover\:text-blue-200:hover, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).hover\:text-blue-200:hover {
+      color: var(--color-blue-200);
     }
 
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .hover\:text-blue-300:hover, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).hover\:text-blue-300:hover {
@@ -4020,6 +4135,10 @@
 
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:grid-cols-2, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:grid-cols-3, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal) .sm\:flex-row, :where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal).sm\:flex-row {

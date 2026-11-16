@@ -3,7 +3,7 @@ import type { AssistantController, AssistantForkEvent, ToolEvent } from '../src/
 import type { SessionImage } from '../src/sessionTypes';
 
 const storageKey = 'sang-ai-kit-demo-snapshot-v2';
-export const DEMO_FEATURES: Readonly<AiFeatures> = { imageGeneration: true, skills: true, quickSnippets: true, fontManagement: true, onlineFonts: true };
+export const DEMO_FEATURES: Readonly<AiFeatures> = { imageGeneration: true, skills: true, quickSnippets: true, fontManagement: true, onlineFonts: true, backgroundRemoval: true };
 const images = createIndexedDbImageStore('sang-ai-kit-demo-images-v1');
 export const loadDemoImage = (sessionId: string, imageId: string) => images.loadImage(sessionId, imageId);
 const storage: AssistantStorage = {

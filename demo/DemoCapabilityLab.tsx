@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import {
   Bot,
-  Cpu,
   Image as ImageIcon,
   Languages,
   Maximize2,
   Minimize2,
   Play,
   RotateCcw,
-  Scissors,
   Sliders,
   Sparkles,
   Wand2
@@ -28,7 +26,6 @@ export interface DemoHarnessSettings {
   demoSupportsVision: boolean;
   showUsageBar: boolean;
   showModelControls: boolean;
-  enableBackgroundRemovalSlot: boolean;
   enableEncryptionSlot: boolean;
   showTurnLimits: boolean;
   showSecurityNotice: boolean;
@@ -54,7 +51,6 @@ export const DEFAULT_HARNESS_SETTINGS: Readonly<DemoHarnessSettings> = {
   demoSupportsVision: true,
   showUsageBar: true,
   showModelControls: true,
-  enableBackgroundRemovalSlot: true,
   enableEncryptionSlot: true,
   showTurnLimits: true,
   showSecurityNotice: true,
@@ -545,18 +541,6 @@ export default function DemoCapabilityLab({
             <label className="demo-feature">
               <input
                 type="checkbox"
-                checked={settings.enableBackgroundRemovalSlot}
-                onChange={e => update('enableBackgroundRemovalSlot', e.target.checked)}
-              />
-              <span>
-                <strong>注入「智能抠图」宿主扩展设置页 (<code>renderBackgroundRemoval</code>)</strong>
-                <small>向配置中心动态注入第 3 个标签页「智能抠图」，演示宿主专用设置面板插槽。</small>
-              </span>
-            </label>
-
-            <label className="demo-feature">
-              <input
-                type="checkbox"
                 checked={settings.enableEncryptionSlot}
                 onChange={e => update('enableEncryptionSlot', e.target.checked)}
               />
@@ -678,96 +662,6 @@ export default function DemoCapabilityLab({
           )}
         </div>
       )}
-    </section>
-  );
-}
-
-// 宿主通过 renderBackgroundRemoval 插槽注入到 AiSettings 中的「智能抠图」演示面板
-export function DemoBackgroundRemovalPanel({ english }: { english: boolean }) {
-  const [model, setModel] = useState<'rmbg-1.4' | 'birefnet-lite' | 'modnet'>('rmbg-1.4');
-  const [device, setDevice] = useState<'webgpu' | 'wasm'>('webgpu');
-  const [feather, setFeather] = useState(2);
-  const label = (zh: string, en: string) => (english ? en : zh);
-
-  return (
-    <section className="p-5 rounded-2xl border border-slate-800 bg-slate-900/50 space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0">
-            <Scissors size={18} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-white">
-              {label('本地 ONNX 智能背景移除（宿主插槽演示）', 'Local ONNX Background Removal (Host Slot Demo)')}
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {label(
-                '此标签页由宿主通过 renderBackgroundRemoval 插槽动态注入，用于配置浏览器端本地抠图引擎。',
-                'Injected by the host via renderBackgroundRemoval to configure browser-local background removal.'
-              )}
-            </p>
-          </div>
-        </div>
-        <span className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300">
-          {device === 'webgpu' ? 'WebGPU Accelerated' : 'WASM SIMD'}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-            {label('抠图推理模型', 'Segmentation Model')}
-          </label>
-          <select
-            value={model}
-            onChange={e => setModel(e.target.value as typeof model)}
-            className="w-full bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none focus:border-blue-500"
-          >
-            <option value="rmbg-1.4">RMBG-1.4 (通用高精度 · 44MB)</option>
-            <option value="birefnet-lite">BiRefNet-Lite (发丝级边缘 · 68MB)</option>
-            <option value="modnet">MODNet (轻量极速人像 · 25MB)</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-            {label('计算后端优先级', 'Execution Backend')}
-          </label>
-          <div className="flex items-center gap-2">
-            {(['webgpu', 'wasm'] as const).map(item => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setDevice(item)}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  device === item
-                    ? 'bg-blue-600 text-white border-blue-500'
-                    : 'bg-slate-850 text-slate-300 border-slate-750 hover:bg-slate-800'
-                }`}
-              >
-                <Cpu size={13} />
-                <span>{item === 'webgpu' ? 'WebGPU 优先' : 'WASM 兼容'}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between text-xs mb-1.5">
-          <span className="font-semibold text-slate-300">{label('边缘羽化半径 (px)', 'Edge Feathering (px)')}</span>
-          <span className="font-mono text-blue-400">{feather} px</span>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={8}
-          step={1}
-          value={feather}
-          onChange={e => setFeather(Number(e.target.value))}
-          className="w-full accent-blue-600 cursor-pointer"
-        />
-      </div>
     </section>
   );
 }

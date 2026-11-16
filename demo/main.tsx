@@ -6,8 +6,9 @@ import { BookOpen, Bot, CircleHelp, Image as ImageIcon, LayoutDashboard, Message
 import { AiAssistant, AiSettings, ConfigDecryptionError, EncryptionKeySettings, FontSettings, ImageModelSettings, ModelControls, SkillSettings, TokenUsageBar, DEFAULT_SETTINGS, availableImageModels, createBrowserAiStore, createEndpoint, createImageUpload, createKeyBackupCodec, createModel, normalizeConfig, normalizeAiFeatures, resolveSelection, selectModel, sessionUsageSummary, sumUsage, updateActiveModel, useFloatingPanel, useResolvedTheme, type AiConfig, type AiFeatures, type AssistantTheme, type FloatingStore, type InsertGalleryImageInput, type ResponsesRequestSnapshot } from '../src';
 import { DEMO_FEATURES, forkDemoConversation, loadDemoImage, seedDemoShowcaseSession, useDemoAssistant } from './useDemoAssistant';
 import DemoIntegrationSettings from './DemoIntegrationSettings';
+import DemoColorMatting from './DemoColorMatting';
 import DemoRequestInspector, { redactRequestSnapshot } from './DemoRequestInspector';
-import DemoCapabilityLab, { DEFAULT_HARNESS_SETTINGS, DemoBackgroundRemovalPanel, type DemoHarnessSettings } from './DemoCapabilityLab';
+import DemoCapabilityLab, { DEFAULT_HARNESS_SETTINGS, type DemoHarnessSettings } from './DemoCapabilityLab';
 import DemoDocsView, { DOC_CHAPTERS } from './DemoDocsView';
 import { THEME_PALETTES, buildThemeStyleVariables, getPaletteById, type PaletteId } from './palettes';
 import './demo.css';
@@ -419,6 +420,8 @@ function Demo() {
               onReset={resetIntegration}
             />
 
+            {features.backgroundRemoval && <DemoColorMatting />}
+
             {/* 工作区文档画布（支持接收从 AI 助手图片画廊置入的图片资产） */}
             <div className="demo-document">
               <div className="demo-document-top">
@@ -587,7 +590,6 @@ function Demo() {
           showTurnLimits={harness.showTurnLimits}
           supportsVision={active.endpoint.id === 'local-demo' ? harness.demoSupportsVision : active.model.supportsVision}
           renderImageModels={(draft, onChange, english) => <ImageModelSettings config={draft} onChange={onChange} english={english} />}
-          renderBackgroundRemoval={harness.enableBackgroundRemovalSlot ? english => <DemoBackgroundRemovalPanel english={english} /> : undefined}
           renderSkills={(skills, onChange, english) => <SkillSettings skills={skills} onChange={onChange} english={english} />}
           renderFonts={(fonts, onChange, english, enabled) => (
             <FontSettings

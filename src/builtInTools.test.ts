@@ -15,12 +15,12 @@ const options = (value: AiConfig) => ({ config: value, loadImage: async () => nu
 test('registers built-in tools independently and keeps disabled configuration', async () => {
   const value = config();
   const normal = createBuiltInTools(options(value));
-  expect(normal.tools.map(tool => tool.name)).toEqual(['list_fonts', 'skill', 'generate_image']);
+  expect(normal.tools.map(tool => tool.name)).toEqual(['remove_background', 'list_fonts', 'skill', 'generate_image']);
   expect(normal.instructions).toContain('Images');
   expect(normal.instructions).toContain('<available_skills>');
   const repeated = createBuiltInTools(options({ ...value, systemPrompt: normal.instructions }));
   expect(repeated.instructions).toBe(normal.instructions);
-  const disabled = createBuiltInTools({ ...options(value), features: { imageGeneration: false, skills: false, fontManagement: false, onlineFonts: true } });
+  const disabled = createBuiltInTools({ ...options(value), features: { imageGeneration: false, skills: false, fontManagement: false, onlineFonts: true, backgroundRemoval: false } });
   expect(disabled.tools).toEqual([]);
   expect(disabled.instructions).toBe('System');
   expect(value.skills).toHaveLength(1);
@@ -34,6 +34,20 @@ test('online fonts are optional when font management is enabled', async () => {
     const fonts = await builtIn.tools.find(tool => tool.name === 'list_fonts')!.execute({}, new AbortController().signal) as { source: string }[];
     expect(fonts.filter(font => font.source === 'local')).toHaveLength(1);
     expect(fonts.filter(font => font.source === 'google')).toHaveLength(onlineFonts ? 9 : 0);
+  }
+});
+
+test('registers background removal only with both image storage callbacks', () => {
+  const value = config();
+  const storage = options(value);
+  for (const [loadImage, saveImage, expected] of [
+    [undefined, undefined, false],
+    [storage.loadImage, undefined, false],
+    [undefined, storage.saveImage, false],
+    [storage.loadImage, storage.saveImage, true]
+  ] as const) {
+    const builtIn = createBuiltInTools({ config: value, loadImage, saveImage });
+    expect(builtIn.tools.some(tool => tool.name === 'remove_background')).toBe(expected);
   }
 });
 

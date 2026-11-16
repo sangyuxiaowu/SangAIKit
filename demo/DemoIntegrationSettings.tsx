@@ -6,7 +6,8 @@ const FEATURE_OPTIONS: { key: keyof AiFeatures; label: string; description: stri
   { key: 'skills', label: 'SKILL', description: '启用已配置的技能读取工具。' },
   { key: 'quickSnippets', label: '快捷短语', description: '在助手空白状态显示快捷提问。' },
   { key: 'fontManagement', label: '字体管理', description: '提供本地字体管理与字体工具。' },
-  { key: 'onlineFonts', label: '在线字体', description: '字体管理开启时，允许查询在线字体。' }
+  { key: 'onlineFonts', label: '在线字体', description: '字体管理开启时，允许查询在线字体。' },
+  { key: 'backgroundRemoval', label: '抠图', description: '启用本地抠图设置及工具。' }
 ];
 
 type LimitKey = 'maxToolRounds' | 'maxImageFailures';
@@ -28,6 +29,7 @@ export default function DemoIntegrationSettings({
 }: DemoIntegrationSettingsProps) {
   const toolNames = [
     'read_workspace',
+    ...(features.backgroundRemoval ? ['remove_background'] : []),
     ...(features.fontManagement ? ['list_fonts'] : []),
     ...(features.skills && skillCount ? ['skill'] : []),
     ...(features.imageGeneration && validImageModelCount ? ['generate_image'] : [])

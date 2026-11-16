@@ -32,6 +32,7 @@ import type { ReasoningEffort } from './ModelControls';
 import { getSelectedReasoningEffort } from './ModelControls';
 import { ResolvedThemeContext, useResolvedTheme } from './useResolvedTheme';
 import { normalizeAiFeatures } from './features';
+import BackgroundRemovalSettings from './background-removal/BackgroundRemovalSettings';
 import { testEndpointConnection } from './endpointConnection';
 import '../generated/sang-ai-utilities.css';
 import './assistant.css';
@@ -250,7 +251,7 @@ export default function AiSettings({ config, features: featureSettings, onSave, 
       alert: keyStatus === 'missing' || keyStatus === 'locked',
       tooltip: label('密钥加密存储与轮次限制', 'Encryption storage and turn limits')
     }
-  ].filter(item => item.id !== 'images' || (renderImageModels && features.imageGeneration)).filter(item => item.id !== 'removal' || renderBackgroundRemoval).filter(item => item.id !== 'skills' || (renderSkills && features.skills)).filter(item => item.id !== 'snippets' || features.quickSnippets).filter(item => item.id !== 'other' || showTurnLimits || (renderFonts && features.fontManagement) || store.encryption), [draft.endpoints, draft.imageModels, draft.skills?.length, snippets.length, keyStatus, english, renderImageModels, renderBackgroundRemoval, renderSkills, renderFonts, features.imageGeneration, features.skills, features.quickSnippets, features.fontManagement, features.onlineFonts, showTurnLimits, store.encryption]);
+  ].filter(item => item.id !== 'images' || (renderImageModels && features.imageGeneration)).filter(item => item.id !== 'removal' || features.backgroundRemoval).filter(item => item.id !== 'skills' || (renderSkills && features.skills)).filter(item => item.id !== 'snippets' || features.quickSnippets).filter(item => item.id !== 'other' || showTurnLimits || (renderFonts && features.fontManagement) || store.encryption), [draft.endpoints, draft.imageModels, draft.skills?.length, snippets.length, keyStatus, english, renderImageModels, renderSkills, renderFonts, features.imageGeneration, features.backgroundRemoval, features.skills, features.quickSnippets, features.fontManagement, features.onlineFonts, showTurnLimits, store.encryption]);
 
   useEffect(() => {
     if (!tabList.some(item => item.id === tab)) setTab('models');
@@ -500,7 +501,7 @@ const ToggleSwitch: React.FC<{
             )}
             {tab === 'removal' && (
               <div className="animate-in fade-in-50 duration-200 slide-in-from-bottom-1 space-y-6">
-                {renderBackgroundRemoval?.(english)}
+                {renderBackgroundRemoval ? renderBackgroundRemoval(english) : <BackgroundRemovalSettings english={english} />}
               </div>
             )}
 

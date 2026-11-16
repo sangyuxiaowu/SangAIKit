@@ -1,0 +1,78 @@
+.sak-matting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, .7);
+}
+
+.sak-matting {
+  width: min(100%, 960px);
+  max-height: 90vh;
+  overflow: auto;
+  border: 1px solid #344454;
+  border-radius: 8px;
+  padding: 16px;
+  color: #e6edf2;
+  background: #101923;
+  box-shadow: 0 16px 48px #0008;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.sak-matting-header, .sak-matting-toolbar, .sak-matting-tools, .sak-matting-zoom, .sak-matting-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sak-matting-header { justify-content: space-between; margin-bottom: 12px; }
+.sak-matting-header h2 { margin: 0; font-size: 16px; }
+.sak-matting-body { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; }
+.sak-matting-workspace { min-width: 0; }
+.sak-matting-toolbar { min-height: 36px; margin-bottom: 8px; flex-wrap: wrap; }
+.sak-matting-zoom { margin-left: auto; }
+.sak-matting-zoom span { min-width: 42px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+.sak-matting button { cursor: pointer; color: inherit; }
+.sak-matting-header button, .sak-matting-toolbar button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #405363;
+  border-radius: 5px;
+  background: #1d2b37;
+}
+.sak-matting-toolbar button[aria-pressed="true"] { border-color: #51c7b1; color: #8df1d9; background: #173d3a; }
+.sak-matting button:disabled { opacity: .4; cursor: not-allowed; }
+.sak-matting button:focus-visible, .sak-matting input:focus-visible { outline: 2px solid #62d8c0; outline-offset: 2px; }
+.sak-matting-stage {
+  display: flex;
+  min-height: 240px;
+  height: min(60vh, 620px);
+  overflow: auto;
+  background-color: #eee;
+  background-image: conic-gradient(#aaa 25%, #eee 0 50%, #aaa 0 75%, #eee 0);
+  background-size: 20px 20px;
+}
+.sak-matting-canvas { position: relative; flex: none; margin: auto; }
+.sak-matting-stage canvas { display: block; width: 100%; height: auto; cursor: crosshair; touch-action: none; }
+.sak-matting-cursor { position: absolute; aspect-ratio: 1; min-width: 2px; border: 1px solid white; border-radius: 50%; box-shadow: 0 0 0 1px #111; transform: translate(-50%, -50%); pointer-events: none; }
+.sak-matting-controls { display: flex; flex-direction: column; gap: 14px; }
+.sak-matting-controls label { display: block; }
+.sak-matting-controls label span { float: right; color: #9ce2d2; font-variant-numeric: tabular-nums; }
+.sak-matting-controls input[type="range"] { display: block; width: 100%; margin-top: 6px; accent-color: #4bc4a7; }
+.sak-matting-controls .sak-matting-check { display: flex; align-items: center; gap: 8px; }
+.sak-matting-controls .sak-matting-color { justify-content: space-between; }
+.sak-matting-color input { width: 42px; height: 30px; border: 1px solid #405363; padding: 2px; background: #1d2b37; }
+.sak-matting-link { align-self: flex-start; padding: 0; border: 0; background: none; color: #8ce2d0 !important; }
+.sak-matting-error { color: #ffa8a8; overflow-wrap: anywhere; }
+.sak-matting-apply { width: 100%; padding: 9px 12px; border: 0; border-radius: 5px; background: #18866f; color: #fff !important; font-weight: 600; }
+@media (max-width: 640px) {
+  .sak-matting-body { grid-template-columns: minmax(0, 1fr); }
+  .sak-matting-stage { height: min(45vh, 420px); }
+}

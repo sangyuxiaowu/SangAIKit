@@ -15,7 +15,7 @@ bun run dev
 
 演示将配置和 AES-GCM 加密后的 API Key 保存在 IndexedDB，须主动创建或导入主密钥；创建后可以下载口令保护的备份。主密钥不可导出，但运行时解密后的密钥仍可能被页面脚本读取，不能抵御设备或页面上的所有攻击。真实请求受跨域限制；公开生产环境建议把密钥和模型调用放在后端。
 
-功能开关由宿主接入时配置，不保存在用户的模型设置中。`imageGeneration`、`skills`、`quickSnippets`、`fontManagement` 默认开启；开启字体管理后，可用 `onlineFonts` 决定是否提供在线字体，关闭字体管理时不会注册字体工具，`onlineFonts` 不生效。开关不删除已有模型、规则、短语或字体配置。在线字体选项仅控制助手的字体目录和预览，不会移除宿主项目中已经使用的字体或阻止宿主自行加载字体。
+功能开关由宿主接入时配置，不保存在用户的模型设置中。`imageGeneration`、`skills`、`quickSnippets`、`fontManagement`、`backgroundRemoval` 默认开启；开启字体管理后，可用 `onlineFonts` 决定是否提供在线字体，关闭字体管理时不会注册字体工具，`onlineFonts` 不生效。开关不删除已有模型、规则、短语或字体配置。在线字体选项仅控制助手的字体目录和预览，不会移除宿主项目中已经使用的字体或阻止宿主自行加载字体。抠图无需内置模型，颜色抠图直接可用；智能模型需在线下载，详见 [本地抠图](docs/background-removal.md)。
 
 工具调用轮次上限和生图累计失败上限允许设置为 `0`，表示该项无上限；无限制可能增加请求次数和费用，用户仍可停止当前对话。
 
@@ -23,7 +23,7 @@ bun run dev
 
 | 已共享 | 仍由宿主实现 |
 | --- | --- |
-| 助手浮窗、配置中心、历史和图片画廊、SKILL、字体和生图设置 | 本地抠图等宿主专用设置面板 |
+| 助手浮窗、配置中心、历史和图片画廊、SKILL、字体、生图和本地抠图设置 | 宿主专用设置面板 |
 | Responses 流、思考、工具轮次、原生历史、用量和图片附件 | 应用专属工具的定义、权限、确认及执行 |
 | Kolors、Agnes、GPT Image 生图协议、图片存储和密钥管理 | 将图片或工具结果应用到宿主工作区 |
 | 可选 `useAssistant` 通用会话控制器和浏览器加密存储 | 宿主业务操作的撤销/重做及原生文件存储 |
@@ -46,7 +46,7 @@ bun run dev
 
 本地链接存在多份 React 时，Vite 宿主需设置 `resolve.dedupe: ['react', 'react-dom']`。本地路径要求每台开发机和 CI 有相同目录结构，不能独立克隆宿主后直接安装。链接或复制行为由安装器决定，修改组件后若未更新请重新安装依赖。
 
-`AiAssistant` 接收 `AssistantController`、浮窗控制、模型信息，以及 Markdown、设置、用量、模型控件等插槽。`AiSettings` 接收配置与校验操作，生图、SKILL、字体、抠图和密钥面板按宿主能力注入；未提供的能力不显示。`useFloatingPanel` 接收位置存储接口；`useAssistant` 和 `createResponsesSender` 提供通用会话与 Responses 适配。可直接从演示适配器开始：`demo/main.tsx` 管理配置与界面，`demo/useDemoAssistant.ts` 注册工作区、SKILL 和生图工具。
+`AiAssistant` 接收 `AssistantController`、浮窗控制、模型信息，以及 Markdown、设置、用量、模型控件等插槽。`AiSettings` 接收配置与校验操作，抠图设置默认由工具包提供，也可通过插槽覆盖；生图、SKILL、字体和密钥面板由宿主注入。`useFloatingPanel` 接收位置存储接口；`useAssistant` 和 `createResponsesSender` 提供通用会话与 Responses 适配。可直接从演示适配器开始：`demo/main.tsx` 管理配置与界面，`demo/useDemoAssistant.ts` 注册工作区、SKILL 和生图工具。
 
 `createResponsesSender` 可选接收 `onRequest({ endpoint, body })` 观察器，在每次请求发送前报告最终 Responses URL 与 JSON body；快照不包含 HTTP headers 或 API Key。它适合诊断最终 instructions、工具 Schema 和上下文输入。生产宿主接入时应自行决定是否记录、展示或脱敏其中的用户消息与附件数据；demo 检查器会脱敏图像 Base64。
 
@@ -64,7 +64,8 @@ const features = {
 	skills: true,
 	quickSnippets: true,
 	fontManagement: true,
-	onlineFonts: false
+	onlineFonts: false,
+	backgroundRemoval: true
 };
 
 const send = createResponsesSender({
@@ -75,7 +76,7 @@ const send = createResponsesSender({
 
 模型配置页的“连接测试”会真实请求当前端点和模型的 Responses API，固定发送 system `this is a test` 与 user `Say OK`；请求不注册工具、不保存服务端会话，30 秒超时。模型配置为支持思考时显式发送 `reasoning.effort: none`，否则不发送 reasoning 参数。只有返回正常的非空文本才显示成功。该测试验证 Responses API 可用性，不验证图像生成端点或其他自定义工具。
 
-生图、SKILL 和字体工具由组件库内置，发送器每轮创建独立工具实例；也可以手动调用 `createBuiltInTools({ config, features, loadImage, saveImage })`，将返回的 `tools` 与宿主业务工具合并。即使接入生图，没有已启用且有效的生图模型或缺少图片读写适配器时，也不会注册生图工具或追加生图提示词。宿主仍应提供自己的权限和确认机制。
+生图、SKILL、字体和抠图工具由组件库内置，发送器每轮创建独立工具实例；也可以手动调用 `createBuiltInTools({ config, features, loadImage, saveImage })`，将返回的 `tools` 与宿主业务工具合并。抠图开启且提供图片读写适配器时自动注册；不要与同名宿主工具重复注册。即使接入生图，没有已启用且有效的生图模型或缺少图片读写适配器时，也不会注册生图工具或追加生图提示词。宿主仍应提供自己的权限和确认机制。
 
 例如，使用自己的后端代理时，可先实现会话存储和发送适配器：
 

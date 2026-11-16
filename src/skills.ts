@@ -23,7 +23,7 @@ export function normalizeSkills(value: unknown): AiSkillConfig[] {
 export function skillsPrompt(skills: AiSkillConfig[] = []): string {
   if (!skills.length) return '';
   const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const summaries = skills.map(skill => `<skill name="${skill.name}"><description>${escape(skill.description)}</description></skill>`).join('\n');
+  const summaries = skills.map(skill => `<skill name="${skill.name}">${escape(skill.description)}</skill>`).join('\n');
   return `## Available Skills
 当用户的任务或需求与以下任一技能匹配时，在继续操作前，请使用确切的技能名称调用\`skill\`工具，阅读其完整规则。
 <available_skills>

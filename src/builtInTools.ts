@@ -7,6 +7,7 @@ import { blobToDataUrl } from './imageAttachments';
 import { listFonts, normalizeLocalFonts } from './fonts';
 import { normalizeAiFeatures, type AiFeatures } from './features';
 import { normalizeSkills, readSkill, skillsPrompt } from './skills';
+import { createBackgroundRemovalTool } from './background-removal/tool';
 
 export interface BuiltInToolOptions {
   config: AiConfig;
@@ -24,6 +25,7 @@ export function createBuiltInTools(options: BuiltInToolOptions): { tools: Respon
   const fonts = features.fontManagement ? normalizeLocalFonts(config.localFonts) : [];
   const imageModels = features.imageGeneration && options.loadImage && options.saveImage ? availableImageModels(config) : [];
   const tools: ResponsesTool[] = [];
+  if (features.backgroundRemoval && options.loadImage && options.saveImage) tools.push(createBackgroundRemovalTool(options));
   if (features.fontManagement) tools.push({
     name: 'list_fonts', description: 'List available local and online fonts.', parameters: { type: 'object', properties: {} },
     execute: async args => { if (Object.keys(args).length) throw new Error('list_fonts does not accept parameters.'); return listFonts(fonts, { localFonts: true, onlineFonts: features.onlineFonts }); }
