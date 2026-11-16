@@ -522,7 +522,6 @@ function Demo() {
       features={features}
       onFork={harness.enableFork ? event => forkDemoConversation(assistant, event, baseAssistant.reloadConfig) : undefined}
       active={{
-        endpoint: active.endpoint.id === 'local-demo' ? { ...active.endpoint, apiKey: 'demo' } : active.endpoint,
         model: active.endpoint.id === 'local-demo' ? { ...active.model, supportsVision: harness.demoSupportsVision } : active.model
       }}
       imageToolsEnabled={features.imageGeneration && (availableImageModels(config).length > 0 || harness.simulation.simulateImageGeneration)}

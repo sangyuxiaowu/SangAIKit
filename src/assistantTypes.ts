@@ -34,12 +34,17 @@ export interface ToolEvent extends SessionTool {
   result?: string;
 }
 
+export type AssistantActivityEvent =
+  | { id: string; type: 'text'; text: string }
+  | { id: string; type: 'reasoning'; text: string }
+  | { id: string; type: 'tool'; toolId: string };
+
 export interface ChatEntry {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   responseItemCount?: number;
-  activity?: ({ id: string; type: 'text'; text: string } | { id: string; type: 'reasoning'; text: string } | { id: string; type: 'tool'; toolId: string })[];
+  activity?: AssistantActivityEvent[];
   tools?: ToolEvent[];
   continuable?: boolean;
   images?: SessionImage[];
@@ -125,7 +130,7 @@ export interface AssistantViewProps {
   quickSnippets: string[];
   features?: Partial<AiFeatures>;
   onFork?: (event: AssistantForkEvent) => void;
-  active: { endpoint: { apiKey: string }; model: { label: string; supportsVision: boolean } };
+  active: { endpoint?: unknown; model: { label?: string; supportsVision: boolean } };
   imageToolsEnabled?: boolean;
   toolLabels?: Record<string, [string, string]>;
   loadImage: (sessionId: string, imageId: string) => Promise<Blob | null>;

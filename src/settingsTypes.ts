@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
-import type { ReasoningEffort } from './ModelControls';
+import type { ReasoningEffort } from './modelConfig';
 import type { AssistantTheme } from './useResolvedTheme';
 import type { AiFeatures } from './features';
+import type { LocalFontSelection } from './fonts';
+import type { ImageModelConfig } from './image-generation/types';
+
+export type { LocalFontSelection } from './fonts';
+export type { ImageModelConfig } from './image-generation/types';
 
 export interface AiModelConfig {
   id: string; label: string; modelId: string; maxTokens: number; contextWindow: number;
@@ -11,13 +16,6 @@ export interface AiModelConfig {
 }
 export interface AiEndpointConfig { id: string; name: string; endpoint: string; apiKey: string; models: AiModelConfig[] }
 export interface AiSkillConfig { name: string; description: string; content: string }
-export interface LocalFontSelection { family: string; fullName: string; styles: string[]; description?: string }
-export interface ImageModelConfig {
-  id: string; adapter: 'kolors' | 'agnes' | 'gpt-image'; label: string; description: string; modelId: string;
-  version?: string; releasedAt?: string; endpointId: string; requestUrl: string; enabled: boolean;
-  size: string; ratio: string; steps: number; guidance: number;
-  quality?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto'; n?: number; timeoutSeconds?: number;
-}
 export interface AiConfig {
   endpoints: AiEndpointConfig[]; imageModels?: ImageModelConfig[];
   activeSelection: { endpointId: string; modelId: string }; systemPrompt: string; imageToolPrompt?: string;

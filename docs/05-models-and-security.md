@@ -9,10 +9,12 @@
 1. **供应商预设模板**：支持一键创建 `OpenAI`、`DeepSeek`、`Agnes`、`本地 Ollama / vLLM` 或 `自定义兼容端点`。
 2. **思考推理参数联动**：
    - 每个模型可独立配置是否支持思考（`thinkingAvailable`）、支持的推理强度档位（`supportedReasoningEfforts`）、默认是否开启思考（`defaultThinkingEnabled`）以及默认推理强度（`defaultReasoningEffort`）。
-   - 当模型开启思考时，`createResponsesSender` 会发送 `reasoning: { effort: selectedEffort }`；当模型支持思考但当前处于关闭状态时，显式发送 `reasoning: { effort: 'none' }`（适配 Agnes 等要求显式关闭思考的协议）。
+   - 宿主根据开关向 `createResponsesSender` 传入 `reasoningEffort`；普通模型关闭思考时发送 `reasoning: { effort: 'none' }`，模型 ID 以 `agnes` 开头时改为 `chat_template_kwargs: { enable_thinking: false }`。启用思考时使用选定的 `reasoning.effort`，不支持思考时不传该选项。连接测试使用相同协议和当前模型状态。
+   - 共享模型选择默认只切换模型；宿主可通过 `selectModel` 的 `restoreThinkingDefaults` 和 `updateActiveModel` 的 `synchronizeThinking` 选项启用所需的思考默认值和联动策略。
 3. **真实端点连接测试 (`testEndpointConnection`)**：
    - 点击端点卡片上的「测试连接」会向当前端点与模型发起真实的 Responses API 请求（固定发送 `system: "this is a test"` 与 `user: "Say OK"`，不挂载任何工具、不保存历史、30 秒超时）。
    - 仅当流式响应或完成响应返回非空文本且未发生非预期工具调用时判定为连接成功，并展示毫秒级响应延迟。
+   - 空 API Key 不产生 `Authorization` 头；是否允许无凭据请求由服务端决定。非空 Key 仍通过 Bearer 发送。
 
 ---
 

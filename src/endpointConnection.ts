@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import type { AiEndpointConfig, AiModelConfig } from './settingsTypes';
 import { getSelectedReasoningEffort } from './ModelControls';
-import { reasoningRequestParams } from './openai';
+import { openAiAuthOptions, reasoningRequestParams } from './responses';
 
 export async function testEndpointConnection(endpoint: AiEndpointConfig, model: AiModelConfig): Promise<string> {
   if (!model.modelId.trim()) throw new Error('模型 ID 不能为空。');
@@ -11,7 +11,7 @@ export async function testEndpointConnection(endpoint: AiEndpointConfig, model: 
   }
   const client = new OpenAI({
     baseURL: url.toString().replace(/\/$/, ''),
-    apiKey: endpoint.apiKey || 'local',
+    ...openAiAuthOptions(endpoint.apiKey),
     dangerouslyAllowBrowser: true,
     maxRetries: 0,
     timeout: 30_000

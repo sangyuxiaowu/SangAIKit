@@ -22,6 +22,7 @@
     "./encryption-settings": "./src/EncryptionKeySettings.tsx",
     "./encryption": "./src/encryption.ts",
     "./config-store": "./src/configStore.ts",
+    "./model-config": "./src/modelConfig.ts",
     "./model-controls": "./src/ModelControls.tsx",
     "./floating": "./src/useFloatingPanel.ts",
     "./floating-geometry": "./src/floatingGeometry.ts",

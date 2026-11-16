@@ -2,13 +2,23 @@ import OpenAI from 'openai';
 import type { Response, ResponseInputItem } from 'openai/resources/responses/responses';
 import type { ChatSender } from './AiChat';
 import type { RequestUsage, ToolEvent } from './assistantTypes';
-import type { ReasoningEffort } from './ModelControls';
-import { readResponse } from './responses';
+import type { ReasoningEffort } from './modelConfig';
+import { openAiAuthOptions, readResponse, reasoningRequestParams } from './responses';
 import { runToolLoop } from './toolLoop';
-import { estimateResponseInput, normalizeUsage, sanitizeResponseItems } from './conversationUtils';
-import { blobToDataUrl } from './imageAttachments';
+import { estimateResponseInput, normalizeUsage, prepareResponseInput, sanitizeResponseItems } from './conversationUtils';
 import { generateId } from './id';
 import { createBuiltInTools, type BuiltInToolOptions } from './builtInTools';
+
+export { reasoningRequestParams } from './responses';
+
+export type ResponsesToolContentPart =
+  | { type: 'input_text'; text: string }
+  | { type: 'input_image'; image_url: string; detail?: 'auto' | 'low' | 'high' | 'original' };
+
+export interface ResponsesToolContent {
+  type: 'responses_tool_content';
+  content: ResponsesToolContentPart[];
+}
 
 export interface ResponsesTool {
   name: string;
@@ -24,7 +34,7 @@ export interface ResponsesRequestSnapshot {
 
 export interface ResponsesConfig {
   baseURL: string;
-  apiKey: string;
+  apiKey?: string;
   model: string;
   instructions?: string;
   maxOutputTokens?: number;
@@ -43,29 +53,37 @@ export interface ResponsesConfig {
   onUsage?: (request: RequestUsage) => void;
 }
 
-export function reasoningRequestParams(model: string, effort?: ReasoningEffort) {
-  if (!effort) return {};
-  if (effort === 'none' && model.toLowerCase().startsWith('agnes')) return { chat_template_kwargs: { enable_thinking: false } };
-  return { reasoning: { effort } };
+function isLocalImage(value: unknown): value is string {
+  return typeof value === 'string' && (/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value) || /^attachment:\/\/[a-zA-Z0-9_-]+$/.test(value));
 }
 
-async function prepareInput(input: ResponseInputItem[], supportsVision: boolean, loadImage?: ResponsesConfig['loadImage']): Promise<ResponseInputItem[]> {
-  const copy = structuredClone(input) as unknown as Record<string, unknown>[];
-  const hydrate = async (parts: unknown[]) => Promise.all(parts.map(async part => {
-    if (!part || typeof part !== 'object') return part;
-    const image = part as { type?: string; image_url?: string | null };
-    if (image.type !== 'input_image') return part;
-    if (!supportsVision) return { type: 'input_text', text: '[Image not provided: the current model does not support image input.]' };
-    if (!image.image_url?.startsWith('attachment://')) return part;
-    const blob = await loadImage?.(image.image_url.slice('attachment://'.length));
-    if (!blob) throw new Error('A referenced chat image is missing.');
-    return { ...image, image_url: await blobToDataUrl(blob) };
-  }));
-  for (const item of copy) {
-    if (Array.isArray(item.content)) item.content = await hydrate(item.content);
-    if (item.type === 'function_call_output' && Array.isArray(item.output)) item.output = await hydrate(item.output);
+function formatToolResult(value: unknown): { output: string | ResponsesToolContentPart[]; summary: string } {
+  if (!value || typeof value !== 'object' || !('type' in value) || value.type !== 'responses_tool_content') {
+    const output = JSON.stringify(value) ?? 'null';
+    return { output, summary: output };
   }
-  return copy as unknown as ResponseInputItem[];
+  if (!('content' in value) || !Array.isArray(value.content) || !value.content.length) throw new Error('Multimodal tool content must be a non-empty array.');
+  const content: ResponsesToolContentPart[] = value.content.map((part: unknown) => {
+    if (!part || typeof part !== 'object' || !('type' in part)) throw new Error('Invalid multimodal tool content.');
+    if (part.type === 'input_text') {
+      if (!('text' in part) || typeof part.text !== 'string') throw new Error('Multimodal text must be a string.');
+      return { type: 'input_text', text: part.text };
+    }
+    if (part.type !== 'input_image') throw new Error('Unsupported multimodal tool content type.');
+    if (!('image_url' in part) || !isLocalImage(part.image_url)) {
+      throw new Error('Image input must be a local PNG, JPEG or WebP data URL or attachment reference.');
+    }
+    const image: Extract<ResponsesToolContentPart, { type: 'input_image' }> = { type: 'input_image', image_url: part.image_url };
+    if ('detail' in part && part.detail !== undefined) {
+      if (part.detail !== 'auto' && part.detail !== 'low' && part.detail !== 'high' && part.detail !== 'original') throw new Error('Invalid image detail.');
+      image.detail = part.detail;
+    }
+    return image;
+  });
+  const summary = JSON.stringify({ type: 'responses_tool_content', content: content.map(part =>
+    part.type === 'input_image' && part.image_url.startsWith('data:') ? { ...part, image_url: '[image data]' } : part
+  ) });
+  return { output: content, summary };
 }
 
 export function createResponsesSender(config: ResponsesConfig): ChatSender {
@@ -79,15 +97,16 @@ export function createResponsesSender(config: ResponsesConfig): ChatSender {
   const timeoutMs = config.timeoutMs ?? 120_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) throw new Error('请求超时必须为正整数。');
   const limitMessage = '已达到本轮工具调用上限。请检查已完成的操作后继续。';
-  const client = new OpenAI({ baseURL: url.toString().replace(/\/$/, ''), apiKey: config.apiKey || 'local', dangerouslyAllowBrowser: true, maxRetries: 0 });
+  const client = new OpenAI({ baseURL: url.toString().replace(/\/$/, ''), ...openAiAuthOptions(config.apiKey), dangerouslyAllowBrowser: true, maxRetries: 0 });
   return async (messages, signal, onText) => {
+    const loadImage = config.loadImage ?? config.builtIn?.loadImage;
     const builtIn = config.builtIn ? createBuiltInTools({ ...config.builtIn, config: { ...config.builtIn.config, systemPrompt: config.instructions ?? config.builtIn.config.systemPrompt } }) : undefined;
     const tools = [...(config.tools || []), ...(builtIn?.tools || [])];
     if (new Set(tools.map(tool => tool.name)).size !== tools.length || tools.some(tool => !tool.name)) throw new Error('工具名称必须非空且唯一。');
     const instructions = builtIn?.instructions ?? config.instructions;
     const newMessages: ResponseInputItem[] = (config.history?.length ? messages.slice(-1) : messages).map(message => {
       if (message.role !== 'user' || !message.images?.length) return { role: message.role, content: message.content };
-      if (message.images.some(image => !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image) && !/^attachment:\/\/[a-zA-Z0-9_-]+$/.test(image))) throw new Error('Image input must be a local PNG, JPEG or WebP data URL or attachment reference.');
+      if (message.images.some(image => !isLocalImage(image))) throw new Error('Image input must be a local PNG, JPEG or WebP data URL or attachment reference.');
       return { role: 'user', content: [{ type: 'input_text', text: message.content }, ...message.images.map(image => ({ type: 'input_image' as const, image_url: image, detail: 'auto' as const }))] };
     });
     const input: ResponseInputItem[] = [...sanitizeResponseItems((config.history || []) as ResponseInputItem[]), ...newMessages];
@@ -106,7 +125,7 @@ export function createResponsesSender(config: ResponsesConfig): ChatSender {
         const timeout = setTimeout(() => requestController.abort(new Error('AI request timed out.')), timeoutMs);
         try {
           const requestBody = {
-            model: config.model, instructions, input: await prepareInput(history, config.supportsVision !== false, config.loadImage ?? config.builtIn?.loadImage), stream: true as const, store: false,
+            model: config.model, instructions, input: await prepareResponseInput(history, config.supportsVision !== false, loadImage), stream: true as const, store: false,
             ...(tools.length ? { tools: tools.map(tool => ({ type: 'function' as const, name: tool.name, description: tool.description, parameters: tool.parameters, strict: false })) } : {}),
             ...(url.hostname === 'api.openai.com' ? { include: ['reasoning.encrypted_content' as const] } : {}),
             ...reasoningRequestParams(config.model, config.reasoningEffort),
@@ -139,20 +158,27 @@ export function createResponsesSender(config: ResponsesConfig): ChatSender {
         config.onTool?.({ id: call.call_id, name: call.name, arguments: call.arguments, status: 'running', startedAt });
         let status: 'success' | 'error' = 'success';
         let result: string;
+        let output: string | ResponsesToolContentPart[];
         try {
           signal.throwIfAborted();
           const tool = tools.find(item => item.name === call.name);
           if (!tool) throw new Error('Unknown tool.');
           const args: unknown = JSON.parse(call.arguments);
           if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Tool arguments must be an object.');
-          result = JSON.stringify(await tool.execute(args as Record<string, unknown>, signal)) ?? 'null';
+          const formatted = formatToolResult(await tool.execute(args as Record<string, unknown>, signal));
+          if (Array.isArray(formatted.output) && config.supportsVision !== false) {
+            await prepareResponseInput([{ type: 'function_call_output', output: formatted.output }], true, loadImage);
+          }
+          result = formatted.summary;
+          output = formatted.output;
         } catch (error) {
           signal.throwIfAborted();
           status = 'error';
           result = JSON.stringify({ error: error instanceof Error ? error.message : 'Tool failed.' });
+          output = result;
         }
         config.onTool?.({ id: call.call_id, name: call.name, arguments: call.arguments, status, startedAt, durationMs: Math.max(0, performance.now() - started), result });
-        return { output: { type: 'function_call_output', call_id: call.call_id, output: result }, cancelled: false };
+        return { output: { type: 'function_call_output', call_id: call.call_id, output }, cancelled: false };
       }
     });
   };

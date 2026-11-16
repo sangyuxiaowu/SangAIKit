@@ -1,5 +1,75 @@
-import type { AssistantSession, RequestUsage, TokenUsage } from './assistantTypes';
+import type { AssistantActivityEvent, AssistantSession, RequestUsage, TokenUsage } from './assistantTypes';
 import type { UsageSummary } from './TokenUsageBar';
+import { blobToDataUrl } from './imageAttachments';
+import { generateId } from './id';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function appendReasoningActivity(activity: AssistantActivityEvent[], text: string, itemId?: string): AssistantActivityEvent[] {
+  const next = [...activity];
+  const index = itemId
+    ? next.findIndex(item => item.type === 'reasoning' && item.id === itemId)
+    : next.at(-1)?.type === 'reasoning' ? next.length - 1 : -1;
+  const existing = next[index];
+  if (existing?.type === 'reasoning') next[index] = { ...existing, text: existing.text + text };
+  else next.push({ id: itemId || generateId(), type: 'reasoning', text });
+  return next;
+}
+
+export function orderResponseActivity(items: unknown[], activity: AssistantActivityEvent[]): AssistantActivityEvent[] {
+  const result: AssistantActivityEvent[] = [];
+  const reasoning = activity.filter(item => item.type === 'reasoning');
+  const usedReasoning = new Set<string>();
+  const textParts = (value: unknown) => Array.isArray(value)
+    ? value.flatMap(part => isRecord(part) && typeof part.text === 'string' ? [part.text]
+      : isRecord(part) && typeof part.refusal === 'string' ? [part.refusal] : []).join('')
+    : typeof value === 'string' ? value : '';
+  for (const [index, value] of items.entries()) {
+    if (!isRecord(value)) continue;
+    if (value.type === 'reasoning') {
+      const id = typeof value.id === 'string' && value.id ? value.id : `reasoning-${index}`;
+      const streamed = reasoning.find(part => part.id === id && !usedReasoning.has(part.id))
+        || reasoning.find(part => !usedReasoning.has(part.id) && !items.some(candidate => isRecord(candidate) && candidate.id === part.id));
+      if (streamed) usedReasoning.add(streamed.id);
+      const text = streamed?.text || textParts(value.summary) || textParts(value.content);
+      if (text) result.push({ id, type: 'reasoning', text });
+    } else if (value.type === 'function_call' && typeof value.call_id === 'string' && value.call_id) {
+      result.push({ id: value.call_id, type: 'tool', toolId: value.call_id });
+    } else if (value.role === 'assistant' || value.type === 'message' && value.role !== 'user') {
+      const text = textParts(value.content);
+      if (text) result.push({ id: typeof value.id === 'string' && value.id ? value.id : `message-${index}`, type: 'text', text });
+    }
+  }
+  if (reasoning.length && !items.some(value => isRecord(value) && value.type === 'reasoning')) return activity;
+  if (!result.some(item => item.type === 'text')) result.push(...activity.filter(item => item.type === 'text'));
+  return result;
+}
+
+export async function prepareResponseInput<Item extends object>(
+  input: Item[],
+  supportsVision: boolean,
+  loadImage?: (imageId: string) => Promise<Blob | null>
+): Promise<Item[]> {
+  const copy = structuredClone(input);
+  const hydrate = async (parts: unknown[]) => Promise.all(parts.map(async part => {
+    if (!isRecord(part) || part.type !== 'input_image') return part;
+    if (!supportsVision) return { type: 'input_text', text: '[Image not provided: the current model does not support image input.]' };
+    if (typeof part.image_url !== 'string' || !part.image_url.startsWith('attachment://')) return part;
+    const blob = await loadImage?.(part.image_url.slice('attachment://'.length));
+    if (!blob) throw new Error('A referenced chat image is missing.');
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type)) throw new Error('A referenced image must be PNG, JPEG or WebP.');
+    return { ...part, image_url: await blobToDataUrl(blob) };
+  }));
+  for (const item of copy) {
+    if ('content' in item && Array.isArray(item.content)) Object.assign(item, { content: await hydrate(item.content) });
+    if ('type' in item && item.type === 'function_call_output' && 'output' in item && Array.isArray(item.output)) {
+      Object.assign(item, { output: await hydrate(item.output) });
+    }
+  }
+  return copy;
+}
 
 export interface ResponseUsage {
   input_tokens: number;

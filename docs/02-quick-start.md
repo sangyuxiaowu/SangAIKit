@@ -75,6 +75,8 @@ const runner: AssistantRunner = async (messages, events) => {
 };
 ```
 
+`AiAssistant` 不读取或强制要求前端 API Key；`active` 只需提供模型视觉能力。后端代理自行处理鉴权；提交前 `assistant.send` 拒绝时界面显示错误并恢复草稿，提交后的执行错误由控制器报告。使用 `createResponsesSender` 直连时，省略或留空 `apiKey` 不会发送 `Authorization`；需要认证的服务仍须提供有效凭据。
+
 ---
 
 ## 完整客户端功能接入架构
@@ -108,7 +110,7 @@ const runner: AssistantRunner = async (messages, events) => {
     label: '置入工作区',
     successLabel: '已置入'
   }}
-  active={{ endpoint: active.endpoint, model: active.model }}
+  active={{ model: active.model }}
   imageToolsEnabled={features.imageGeneration && availableImageModels(config).length > 0}
   loadImage={loadDemoImage}
   createImageUpload={createImageUpload}

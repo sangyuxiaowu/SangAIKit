@@ -28,7 +28,7 @@ bun run dev
 | Kolors、Agnes、GPT Image 生图协议、图片存储和密钥管理 | 将图片或工具结果应用到宿主工作区 |
 | 可选 `useAssistant` 通用会话控制器和浏览器加密存储 | 宿主业务操作的撤销/重做及原生文件存储 |
 
-`useAssistant` 通过 `AssistantRunner` 接收文本、思考、工具状态和原生历史；工具可能有副作用，因此通用控制器在本轮出现工具或图片附件时禁用重新生成。需要事务回滚的应用应自行提供可验证的重做实现。演示使用 `attachment://` 资源引用保存图片历史，发送视觉请求时才加载，文本模型不读取图片；若接入方直接传入 data URL，则历史会包含该数据。
+`useAssistant` 通过 `AssistantRunner` 接收文本、思考、工具状态和原生历史；工具可能有副作用，因此通用控制器在本轮出现工具或图片附件时禁用重新生成。需要事务回滚的应用应自行提供可验证的重做实现。用户附件和工具结果均可使用 `attachment://` 资源引用保存图片历史，发送视觉请求时才加载，文本模型不读取图片；若接入方直接传入 data URL，则历史会包含该数据。
 
 工作区读写、业务工具和原生文件权限由接入方明确实现。组件的宿主接口目前仍处于开发阶段，尚未承诺稳定的发布 API。
 
@@ -46,7 +46,7 @@ bun run dev
 
 本地链接存在多份 React 时，Vite 宿主需设置 `resolve.dedupe: ['react', 'react-dom']`。本地路径要求每台开发机和 CI 有相同目录结构，不能独立克隆宿主后直接安装。链接或复制行为由安装器决定，修改组件后若未更新请重新安装依赖。
 
-`AiAssistant` 接收 `AssistantController`、浮窗控制、模型信息，以及 Markdown、设置、用量、模型控件等插槽。`AiSettings` 接收配置与校验操作，抠图设置默认由工具包提供，也可通过插槽覆盖；生图、SKILL、字体和密钥面板由宿主注入。`useFloatingPanel` 接收位置存储接口；`useAssistant` 和 `createResponsesSender` 提供通用会话与 Responses 适配。可直接从演示适配器开始：`demo/main.tsx` 管理配置与界面，`demo/useDemoAssistant.ts` 注册工作区、SKILL 和生图工具。
+`AiAssistant` 接收 `AssistantController`、浮窗控制、模型视觉能力，以及 Markdown、设置、用量、模型控件等插槽；界面不要求宿主暴露 API Key，发送或鉴权失败由宿主报告。`createResponsesSender` 和连接测试在 Key 为空时不发送 `Authorization`，适用于本地服务或代理；服务是否允许无凭据请求由服务端决定。`AiSettings` 接收配置与校验操作，抠图设置默认由工具包提供，也可通过插槽覆盖；生图、SKILL、字体和密钥面板由宿主注入。`useFloatingPanel` 接收位置存储接口；`useAssistant` 和 `createResponsesSender` 提供通用会话与 Responses 适配。可直接从演示适配器开始：`demo/main.tsx` 管理配置与界面，`demo/useDemoAssistant.ts` 注册工作区、SKILL 和生图工具。
 
 `createResponsesSender` 可选接收 `onRequest({ endpoint, body })` 观察器，在每次请求发送前报告最终 Responses URL 与 JSON body；快照不包含 HTTP headers 或 API Key。它适合诊断最终 instructions、工具 Schema 和上下文输入。生产宿主接入时应自行决定是否记录、展示或脱敏其中的用户消息与附件数据；demo 检查器会脱敏图像 Base64。
 
@@ -54,7 +54,7 @@ bun run dev
 
 图片画廊的插入操作由 `assistant.insertImage` 提供；未提供时不显示按钮。`AiAssistant` 的 `imageInsertAction` 可随宿主状态更新 `visible`、`enabled`、`label`、`successLabel` 和 `disabledReason`，`isVisible(item)` 可控制单张图片的按钮；默认不显示预览图的插入按钮。文案由宿主按当前语言提供，未配置时使用通用文案。宿主负责读取图片、决定插入位置及处理失败。默认将内置生图识别为生成图片，其余归为附件；宿主可通过 `classifyGalleryImage(image, tools)` 返回 `generated`、`preview` 或 `attachment`，返回 `undefined` 时使用默认分类。删除图片的回调由宿主负责实际清理，画廊不假设外部引用的存储方式。
 
-宿主可通过 `createResponsesSender({ tools: [...] })` 注册函数工具；每个工具提供 JSON Schema 与 `execute`，并负责在执行前做参数校验、权限控制与必要的用户确认。工具执行状态可通过 `onTool` 回传界面，生图结果应通过会话图片存储保存，不能把付费或有副作用的工具默认当作可回滚操作。
+宿主可通过 `createResponsesSender({ tools: [...] })` 注册函数工具；每个工具提供 JSON Schema 与 `execute`，并负责在执行前做参数校验、权限控制与必要的用户确认。普通结果保持 JSON 文本；需要让模型查看文档页面预览或其他图片时，可返回 `ResponsesToolContent`，详见 [多模态工具结果](docs/03-features-and-tools.md#多模态工具结果)。工具执行状态可通过 `onTool` 回传界面，生图结果应通过会话图片存储保存，不能把付费或有副作用的工具默认当作可回滚操作。
 
 在接入时将同一组 `features` 传给 `AiAssistant`、`AiSettings` 和 `createResponsesSender` 的 `builtIn` 参数。例如：
 
@@ -74,7 +74,7 @@ const send = createResponsesSender({
 });
 ```
 
-模型配置页的“连接测试”会真实请求当前端点和模型的 Responses API，固定发送 system `this is a test` 与 user `Say OK`；请求不注册工具、不保存服务端会话，30 秒超时。模型配置为支持思考时显式发送 `reasoning.effort: none`，否则不发送 reasoning 参数。只有返回正常的非空文本才显示成功。该测试验证 Responses API 可用性，不验证图像生成端点或其他自定义工具。
+模型配置页的“连接测试”会真实请求当前端点和模型的 Responses API，固定发送 system `this is a test` 与 user `Say OK`；请求不注册工具、不保存服务端会话，30 秒超时。测试使用模型当前的思考开关和强度，不支持思考时不发送思考参数；关闭 Agnes 思考时使用 `chat_template_kwargs.enable_thinking: false`，其他模型使用 `reasoning.effort: none`。只有返回正常的非空文本才显示成功。该测试验证 Responses API 可用性，不验证图像生成端点或其他自定义工具。
 
 生图、SKILL、字体和抠图工具由组件库内置，发送器每轮创建独立工具实例；也可以手动调用 `createBuiltInTools({ config, features, loadImage, saveImage })`，将返回的 `tools` 与宿主业务工具合并。抠图开启且提供图片读写适配器时自动注册；不要与同名宿主工具重复注册。即使接入生图，没有已启用且有效的生图模型或缺少图片读写适配器时，也不会注册生图工具或追加生图提示词。宿主仍应提供自己的权限和确认机制。
 

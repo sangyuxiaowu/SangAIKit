@@ -67,3 +67,20 @@ test('rejects empty replies, tool calls, and incomplete responses', async () => 
     await expect(testOutput([], 'incomplete')).rejects.toThrow('未完成');
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('tests keyless endpoints without sending placeholder credentials', async () => {
+  const originalFetch = globalThis.fetch;
+  let authorization: string | null = 'not-called';
+  globalThis.fetch = Object.assign(async (_url: string | URL | Request, init?: RequestInit) => {
+    authorization = new Headers(init?.headers).get('authorization');
+    return response([{ type: 'message', content: [{ type: 'output_text', text: 'OK' }] }]);
+  }, { preconnect: originalFetch.preconnect }) as typeof fetch;
+  try {
+    const endpoint = createEndpoint('local');
+    await testEndpointConnection(endpoint, endpoint.models[0]);
+    expect(authorization).toBeNull();
+    endpoint.apiKey = 'real-key';
+    await testEndpointConnection(endpoint, endpoint.models[0]);
+    expect(authorization).toBe('Bearer real-key');
+  } finally { globalThis.fetch = originalFetch; }
+});

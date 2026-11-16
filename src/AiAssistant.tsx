@@ -61,7 +61,7 @@ export default function AiAssistant({
   const [securityRequested, setSecurityRequested] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [keyAlert, setKeyAlert] = useState<string | null>(null);
+  const [inputAlert, setInputAlert] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [forking, setForking] = useState(false);
   const chatScroll = useChatScroll(assistant.activeSessionId, open && !floating.minimized, !showSessions);
@@ -173,20 +173,7 @@ export default function AiAssistant({
     const uploads = active.model.supportsVision ? imageUploads : [];
     if ((!value.trim() && !uploads.length) || controlsDisabled) return;
 
-    // 当前选择的AI模型没有设置KEY的时候，在发送时，直接提醒前往设置配置KEY，然后输入内容退回输入框
-    const hasKey = Boolean(active.endpoint.apiKey && active.endpoint.apiKey.trim().length > 0);
-    if (!hasKey) {
-      setPrompt(value);
-      setKeyAlert(
-        english
-          ? `Model "${active.model.label}" has no API Key configured. Please go to AI Settings to configure KEY.`
-          : `当前选择的 AI 模型（${active.model.label}）未设置 KEY，请前往设置配置 KEY。`
-      );
-      inputRef.current?.focus();
-      return;
-    }
-
-    setKeyAlert(null);
+    setInputAlert(null);
     setShowSessions(false);
     chatScroll.resetScroll();
     setPrompt('');
@@ -194,7 +181,7 @@ export default function AiAssistant({
     void assistant.send(value.trim() || label('请分析这张图片。', 'Please analyze this image.'), uploads).catch(error => {
       setPrompt(value);
       if (uploads.length) setImageUploads(uploads);
-      setKeyAlert(error instanceof Error ? error.message : label('图片发送失败。', 'Image upload failed.'));
+      setInputAlert(error instanceof Error ? error.message : label('发送失败。', 'Unable to send.'));
     });
   };
 
@@ -203,15 +190,15 @@ export default function AiAssistant({
     const selectedFiles = files ? Array.from(files) : [];
     if (!selectedFiles.length) return;
     if (imageUploads.length + selectedFiles.length > 4) {
-      setKeyAlert(label('每条消息最多添加 4 张图片。', 'Attach up to 4 images per message.'));
+      setInputAlert(label('每条消息最多添加 4 张图片。', 'Attach up to 4 images per message.'));
       return;
     }
     try {
       const uploads = await Promise.all(selectedFiles.map(file => createImageUpload(file, features.imageGeneration && imageToolsEnabled)));
       setImageUploads(previous => [...previous, ...uploads]);
-      setKeyAlert(null);
+      setInputAlert(null);
     } catch (error) {
-      setKeyAlert(error instanceof Error ? error.message : label('图片处理失败。', 'Image processing failed.'));
+      setInputAlert(error instanceof Error ? error.message : label('图片处理失败。', 'Image processing failed.'));
     }
   };
 
@@ -223,7 +210,7 @@ export default function AiAssistant({
       if (!blob) throw new Error(label('图片附件不存在。', 'Image attachment not found.'));
       setSelectedImage({ name: image.name, src: URL.createObjectURL(blob) });
     } catch (error) {
-      setKeyAlert(error instanceof Error ? error.message : label('图片读取失败。', 'Unable to load image.'));
+      setInputAlert(error instanceof Error ? error.message : label('图片读取失败。', 'Unable to load image.'));
     }
   };
 
@@ -323,7 +310,7 @@ export default function AiAssistant({
                   className="cf-ai-icon"
                   disabled={assistant.busy || assistant.loading || assistant.saving}
                   onClick={() => {
-                    setKeyAlert(null);
+                    setInputAlert(null);
                     setSecurityRequested(assistant.keyError);
                     setSettings(true);
                   }}
@@ -591,7 +578,7 @@ export default function AiAssistant({
                                   if (forking) return;
                                   setForking(true);
                                   void Promise.resolve(onFork({ sessionId: assistant.activeSessionId!, entryId: entry.id, ...(entry.responseItemCount !== undefined ? { responseItemCount: entry.responseItemCount } : {}) }))
-                                    .catch(error => setKeyAlert(error instanceof Error ? error.message : label('分叉会话失败。', 'Unable to fork conversation.')))
+                                    .catch(error => setInputAlert(error instanceof Error ? error.message : label('分叉会话失败。', 'Unable to fork conversation.')))
                                     .finally(() => setForking(false));
                                 }}
                                 className="cf-ai-action-btn flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed"
@@ -741,21 +728,20 @@ export default function AiAssistant({
               </section>
             )}
 
-            {/* 未配置 KEY 提醒条 (提示前往设置配置 KEY，提供一键直达) */}
-            {keyAlert && (
+            {inputAlert && (
               <div
                 role="alert"
                 className="mx-3 mb-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-2 shadow-lg animate-in fade-in slide-in-from-bottom-2 shrink-0"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <CircleAlert size={16} className="text-amber-400 shrink-0" />
-                  <span className="truncate">{keyAlert}</span>
+                  <span className="truncate">{inputAlert}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => {
-                      setKeyAlert(null);
+                      setInputAlert(null);
                       setSettings(true);
                     }}
                     className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
@@ -765,7 +751,7 @@ export default function AiAssistant({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setKeyAlert(null)}
+                    onClick={() => setInputAlert(null)}
                     className="p-1 hover:text-white text-amber-400 transition-colors cursor-pointer rounded-lg hover:bg-amber-500/20"
                     title={label('关闭提醒', 'Dismiss')}
                   >
@@ -814,12 +800,12 @@ export default function AiAssistant({
                   rows={3}
                   aria-label={label('发送消息', 'Message')}
                   placeholder={label(
-                    '向 AI 助手描述修改意图，Ctrl+Enter 发送',
-                    'Describe design intent to AI Assistant, Ctrl+Enter to send'
+                    '向 AI 助手输入消息，Ctrl+Enter 发送',
+                    'Message the AI Assistant, Ctrl+Enter to send'
                   )}
                   onChange={event => {
                     setPrompt(event.target.value);
-                    if (keyAlert) setKeyAlert(null);
+                    if (inputAlert) setInputAlert(null);
                   }}
                   onPaste={event => {
                     if (!active.model.supportsVision) return;

@@ -56,6 +56,36 @@ const tools: ResponsesTool[] = [
 ];
 ```
 
+### 多模态工具结果
+
+文档编辑器等宿主可让自己的工具渲染页面预览，再返回 `ResponsesToolContent`；页面选择、权限、渲染和保存均由宿主负责：
+
+```ts
+import type { ResponsesTool, ResponsesToolContent } from 'sang-ai-kit';
+
+// 在 AssistantRunner 中，events 属于当前会话；renderPagePreview 由宿主实现。
+const previewTool: ResponsesTool = {
+  name: 'preview_page',
+  description: '返回当前文档页面的排版预览。',
+  parameters: { type: 'object', properties: {} },
+  execute: async (_args, signal) => {
+    const blob = await renderPagePreview(signal);
+    const image = await events.saveImage(blob, 'page-1.webp');
+    return {
+      type: 'responses_tool_content',
+      content: [
+        { type: 'input_text', text: '第 1 页排版预览' },
+        { type: 'input_image', image_url: `attachment://${image.id}`, detail: 'high' }
+      ]
+    } satisfies ResponsesToolContent;
+  }
+};
+```
+
+将工具传入 `createResponsesSender({ tools: [previewTool], loadImage: events.loadImage, supportsVision, ... })`，并将 `events.onHistory` 和 `events.onTool` 接入发送器。发送器将内容转换为原生 `function_call_output.output` 数组，不会把图片序列化成 JSON 字符串；普通工具结果仍按 JSON 文本处理。`content` 必须为非空的 `input_text` / `input_image` 数组，图片只接受本地 PNG、JPEG、WebP data URL 或 `attachment://<id>` 引用，`detail` 可为 `auto`、`low`、`high`、`original`。不接受外部图片 URL。
+
+推荐使用当前会话图片存储及 `attachment://` 引用：历史保留引用，视觉请求发送时才通过 `loadImage` 读取图片；引用缺失或格式无效会产生工具错误。`supportsVision: false` 时请求副本中的图片替换为明确提示，不读取图片且不修改历史。直接返回 data URL 时历史包含图片数据，但工具事件摘要会隐藏图片 Base64；`onRequest` 仍能看到实际请求体，宿主应自行脱敏。
+
 ---
 
 ## 轮次限制与失败预算

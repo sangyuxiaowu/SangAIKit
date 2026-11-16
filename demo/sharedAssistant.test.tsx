@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { Blob as NodeBlob } from 'node:buffer';
 import { afterEach, expect, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
-import { AiSettings, DEFAULT_SETTINGS, createBrowserAiStore, createEndpoint, createIndexedDbImageStore, createModel, normalizeConfig, resolveSelection, useAssistant, useResolvedTheme, type AiConfig, type AssistantRunner, type AssistantSnapshot, type AssistantStorage } from '../src';
+import { AiAssistant, AiSettings, DEFAULT_SETTINGS, createBrowserAiStore, createEndpoint, createIndexedDbImageStore, createModel, normalizeConfig, resolveSelection, useAssistant, useResolvedTheme, type AiConfig, type AssistantController, type AssistantRunner, type AssistantSnapshot, type AssistantStorage } from '../src';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -260,5 +260,54 @@ it('uses host features without saving them and permits zero limits', async () =>
     await act(async () => root.unmount());
     if (originalScroll) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', originalScroll);
     else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+  }
+});
+
+it('allows a host without frontend credentials and displays host send errors', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('requestAnimationFrame', () => 1);
+  vi.stubGlobal('cancelAnimationFrame', () => {});
+  const send = vi.fn<AssistantController['send']>(async () => {});
+  const controller: AssistantController = {
+    entries: [], sessions: [], activeSessionId: null, busy: false, loading: false, saving: false,
+    loadError: '', keyError: false, configError: '', executionError: null, confirmation: null, canRegenerate: false,
+    send, stop: () => {}, newSession: async () => {}, selectSession: async () => {},
+    renameSession: async () => {}, deleteSession: async () => {}, reloadConfig: async () => {},
+    clearExecutionError: () => {}, retry: async () => {}, regenerate: async () => {}
+  };
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  const enter = async (value: string) => {
+    await act(async () => {
+      const textarea = host.querySelector('textarea')!;
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(textarea, value);
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+  const submit = async () => {
+    await act(async () => { host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+  };
+  try {
+    await act(async () => root.render(<AiAssistant
+      assistant={controller} floating={{ minimized: false, setMinimized: () => {}, resizeByKeyboard: () => {} }}
+      open language="en" title="Assistant" emptyTitle="Ready" emptyDescription="Ask a question"
+      active={{ model: { supportsVision: false } }} quickSnippets={[]}
+      loadImage={async () => null} createImageUpload={async () => { throw new Error('not used'); }}
+      imageModelForTool={() => undefined} sumUsage={() => undefined}
+      renderMarkdown={() => null} renderUsage={() => null} renderModelControls={() => null} renderSettings={() => null}
+    />));
+    await enter('Hello');
+    await submit();
+    expect(send).toHaveBeenCalledWith('Hello', []);
+    send.mockRejectedValueOnce(new Error('Host authorization required'));
+    await enter('Preserve this draft');
+    await submit();
+    expect(host.querySelector('textarea')?.value).toBe('Preserve this draft');
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain('Host authorization required');
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
   }
 });

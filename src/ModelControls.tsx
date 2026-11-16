@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Brain, ChevronDown } from 'lucide-react';
-export type ReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+import { ALL_REASONING_EFFORTS, type ReasoningEffort } from './modelConfig';
+
+export type { ReasoningEffort } from './modelConfig';
 
 export interface ModelControlModel {
   id: string;
@@ -26,16 +28,6 @@ interface Props<Config extends ModelControlConfig> {
   disabled: boolean;
   english: boolean;
 }
-
-const ALL_REASONING_EFFORTS: ReasoningEffort[] = [
-  'none',
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max'
-];
 
 export function getSelectedReasoningEffort(model: ModelControlModel): ReasoningEffort {
   const availableEfforts = ALL_REASONING_EFFORTS.filter(
