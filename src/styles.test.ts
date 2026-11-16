@@ -37,3 +37,20 @@ test('typography utilities override unlayered host element resets', async () => 
     }
   }
 });
+
+test('theme rules isolate portals and preserve readable accent and hover text', async () => {
+  const stylesheet = postcss.parse(await readFile(new URL('./assistant.css', import.meta.url), 'utf8'));
+  const selectors: string[] = [];
+  let accentText = false;
+  let groupHoverText = false;
+  stylesheet.walkRules(rule => {
+    selectors.push(...rule.selectors);
+    rule.walkDecls('color', declaration => {
+      if (rule.selector.includes('.bg-blue-600') && declaration.value === 'var(--ai-accent-contrast)') accentText = true;
+      if (rule.selector.includes('.group-hover\\:text-white') && declaration.value === 'var(--ai-text)') groupHoverText = true;
+    });
+  });
+  expect(selectors.some(selector => selector.includes('body:has('))).toBe(false);
+  expect(accentText).toBe(true);
+  expect(groupHoverText).toBe(true);
+});

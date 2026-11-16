@@ -30,7 +30,7 @@ import {
 import type { AiEndpointConfig, AiModelConfig, AiSkillConfig, EncryptionStatus, SettingsProps } from './settingsTypes';
 import type { ReasoningEffort } from './ModelControls';
 import { getSelectedReasoningEffort } from './ModelControls';
-import { useResolvedTheme } from './useResolvedTheme';
+import { ResolvedThemeContext, useResolvedTheme } from './useResolvedTheme';
 import { normalizeAiFeatures } from './features';
 import { testEndpointConnection } from './endpointConnection';
 import '../generated/sang-ai-utilities.css';
@@ -369,6 +369,7 @@ const ToggleSwitch: React.FC<{
   const labelClass = 'text-[11px] font-medium text-slate-400 block mb-1';
 
   return (
+    <ResolvedThemeContext.Provider value={resolvedTheme}>
     <div data-theme={resolvedTheme} className="sang-ai-settings fixed inset-0 z-[120] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div
         className="bg-[#0b0f17] border border-slate-800 rounded-2xl shadow-2xl max-w-4xl w-full h-[88vh] max-h-[880px] min-h-0 sm:min-h-[520px] flex flex-col overflow-hidden text-slate-200"
@@ -1434,5 +1435,6 @@ const ToggleSwitch: React.FC<{
         </form>
       </div>
     </div>
+    </ResolvedThemeContext.Provider>
   );
 }

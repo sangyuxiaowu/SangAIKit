@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useLayoutEffect, type CSSProperties } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useContext, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { TokenUsage } from './assistantTypes';
+import { ResolvedThemeContext } from './useResolvedTheme';
 import { Activity, Layers, MessageSquare, Terminal, Zap, Clock, ShieldCheck, AlertTriangle, AlertOctagon } from 'lucide-react';
 
 export interface UsageSummary {
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function TokenUsageBar({ usage, model, busy, english }: Props) {
+  const resolvedTheme = useContext(ResolvedThemeContext);
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'turn' | 'total'>('turn');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -186,6 +188,7 @@ export default function TokenUsageBar({ usage, model, busy, english }: Props) {
         <div
           ref={popoverRef}
           className="sang-ai-portal fixed z-[100] w-[330px] max-w-[calc(100vw-24px)] overflow-y-auto pointer-events-auto"
+          data-theme={resolvedTheme}
           style={popoverPosition}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}

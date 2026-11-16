@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { createContext, useEffect, useState } from 'react';
 
 export type AssistantTheme = 'light' | 'dark' | 'system';
+export const ResolvedThemeContext = createContext<'light' | 'dark'>('dark');
 
 export function useResolvedTheme(theme: AssistantTheme): 'light' | 'dark' {
   const [systemDark, setSystemDark] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches);

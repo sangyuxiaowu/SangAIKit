@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import SessionList, { type GalleryInsertAction } from '../src/SessionList';
+import { ResolvedThemeContext } from '../src/useResolvedTheme';
 import type { ChatSession } from '../src/sessionTypes';
 
 it('portals the half-page gallery preview above a transformed AI panel', async () => {
@@ -21,18 +22,19 @@ it('portals the half-page gallery preview above a transformed AI panel', async (
     id: 'session-1', title: 'Preview chat', updatedAt: 1,
     entries: [{ content: 'image', images: [{ id: 'image-1', name: 'preview.png', type: 'image/png', size: 12 }] }]
   };
+  const render = (theme: 'light' | 'dark') => <ResolvedThemeContext.Provider value={theme}><SessionList
+    sessions={[session]}
+    activeId={session.id}
+    disabled={false}
+    english={false}
+    onNew={async () => {}}
+    onSelect={async () => {}}
+    onRename={async () => {}}
+    onDelete={async () => {}}
+    onLoadImage={async () => new Blob(['image'], { type: 'image/png' })}
+  /></ResolvedThemeContext.Provider>;
   try {
-    await act(async () => root.render(<SessionList
-      sessions={[session]}
-      activeId={session.id}
-      disabled={false}
-      english={false}
-      onNew={async () => {}}
-      onSelect={async () => {}}
-      onRename={async () => {}}
-      onDelete={async () => {}}
-      onLoadImage={async () => new Blob(['image'], { type: 'image/png' })}
-    />));
+    await act(async () => root.render(render('light')));
     const galleryCard = [...panel.querySelectorAll('[role="button"]')].find(element => element.textContent?.includes('图片资产'));
     await act(async () => { galleryCard?.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -43,12 +45,24 @@ it('portals the half-page gallery preview above a transformed AI panel', async (
     const portal = document.body.querySelector<HTMLElement>('.sang-ai-portal');
     const dialog = portal?.querySelector<HTMLElement>('[role="dialog"]');
     expect(portal?.parentElement).toBe(document.body);
+    expect(portal?.dataset.theme).toBe('light');
     expect(panel.contains(portal)).toBe(false);
     expect(portal?.className).toContain('z-[130]');
     expect(dialog?.className).toContain('w-[92vw]');
     expect(dialog?.className).toContain('rounded-2xl');
     expect(dialog?.className).toContain('sm:w-[min(56vw,900px)]');
     expect(dialog?.className).toContain('h-[min(72dvh,720px)]');
+
+    const otherPanel = document.createElement('div');
+    otherPanel.className = 'cf-ai-panel';
+    otherPanel.dataset.theme = 'light';
+    document.body.appendChild(otherPanel);
+    try {
+      await act(async () => root.render(render('dark')));
+      expect(portal?.dataset.theme).toBe('dark');
+    } finally {
+      otherPanel.remove();
+    }
 
     await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); });
     expect(document.body.querySelector('.sang-ai-portal')).toBeNull();

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useId, useRef, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useId, useRef, useLayoutEffect, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import {
   BookOpen,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { AiSkillConfig } from './settingsTypes';
 import { normalizeSkills } from './skills';
+import { ResolvedThemeContext } from './useResolvedTheme';
 
 export interface SkillPreset {
   id: string; category: string; categoryLabelZh: string; categoryLabelEn: string; name: string;
@@ -40,6 +41,7 @@ export interface SkillSettingsProps {
 }
 
 export default function SkillSettings({ skills = [], onChange, english, presets = [], exportPrefix = 'sang-ai-skills', renderConfirm }: SkillSettingsProps) {
+  const resolvedTheme = useContext(ResolvedThemeContext);
   const formId = useId();
   const editorRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -708,7 +710,7 @@ export default function SkillSettings({ skills = [], onChange, english, presets 
         </div>
       </div>}
       {pendingDelete !== null && createPortal(
-        <div className="sang-ai-portal">{(renderConfirm || ((message, onCancel, onConfirm) => <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/60"><div role="alertdialog" aria-modal="true" className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-slate-100"><p>{message}</p><div className="flex justify-end gap-3 mt-4"><button type="button" className="px-4 py-2 bg-slate-800" onClick={onCancel}>{label('取消', 'Cancel')}</button><button type="button" className="px-4 py-2 bg-red-600 text-white" onClick={onConfirm}>{label('删除', 'Delete')}</button></div></div></div>))(
+        <div className="sang-ai-portal" data-theme={resolvedTheme}>{(renderConfirm || ((message, onCancel, onConfirm) => <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/60"><div role="alertdialog" aria-modal="true" className="bg-slate-900 border border-slate-800 rounded-xl p-6 text-slate-100"><p>{message}</p><div className="flex justify-end gap-3 mt-4"><button type="button" className="px-4 py-2 bg-slate-800" onClick={onCancel}>{label('取消', 'Cancel')}</button><button type="button" className="px-4 py-2 bg-red-600 text-white" onClick={onConfirm}>{label('删除', 'Delete')}</button></div></div></div>))(
           label(`确定删除技能“${pendingDelete}”吗？`, `Delete skill "${pendingDelete}"?`),
           () => setPendingDelete(null),
           () => {

@@ -1,13 +1,14 @@
+/* 默认浅色模式 (Redesigned Default Light Mode — Daylight Slate & Royal Cobalt) */
 .cai-chat {
-  --cai-bg: #f9faf8;
-  --cai-surface: #fff;
-  --cai-text: #1c2829;
-  --cai-muted: #637171;
-  --cai-border: #dce4e1;
-  --cai-accent: var(--sang-ai-accent, #087c6b);
-  --cai-accent-text: var(--sang-ai-accent-text, #fff);
-  --cai-user-bg: #e4f2ee;
-  --cai-error: #a83232;
+  --cai-bg: var(--sang-ai-cai-bg, #f7f8fc);
+  --cai-surface: var(--sang-ai-cai-surface, #ffffff);
+  --cai-text: var(--sang-ai-cai-text, #141923);
+  --cai-muted: var(--sang-ai-cai-muted, #5c667a);
+  --cai-border: var(--sang-ai-cai-border, #dde3ee);
+  --cai-accent: var(--sang-ai-accent, #3b5bdb);
+  --cai-accent-text: var(--sang-ai-accent-text, #ffffff);
+  --cai-user-bg: var(--sang-ai-cai-user-bg, color-mix(in srgb, var(--cai-accent) 10%, #ffffff));
+  --cai-error: #c92a2a;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -19,28 +20,71 @@
   font: 14px/1.5 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
 
+/* 默认深色模式 (Redesigned Default Dark Mode — Obsidian Graphite & Cobalt Indigo) */
 .cai-chat[data-theme='dark'] {
-  --cai-bg: #171d1c;
-  --cai-surface: #222b29;
-  --cai-text: #edf4f1;
-  --cai-muted: #a3b3ad;
-  --cai-border: #394842;
-  --cai-accent: var(--sang-ai-accent, #59cfaa);
-  --cai-accent-text: var(--sang-ai-accent-text, #10251c);
-  --cai-user-bg: #28443a;
-  --cai-error: #ff9a94;
+  --cai-bg: var(--sang-ai-cai-bg, #11141c);
+  --cai-surface: var(--sang-ai-cai-surface, #181d28);
+  --cai-text: var(--sang-ai-cai-text, #f3f5f9);
+  --cai-muted: var(--sang-ai-cai-muted, #949eb0);
+  --cai-border: var(--sang-ai-cai-border, #2a3244);
+  --cai-accent: var(--sang-ai-accent, #4f6ef7);
+  --cai-accent-text: var(--sang-ai-accent-text, #ffffff);
+  --cai-user-bg: var(--sang-ai-cai-user-bg, color-mix(in srgb, var(--cai-accent) 20%, #181d28));
+  --cai-error: #ff8787;
 }
 
 @media (prefers-color-scheme: dark) {
   .cai-chat[data-theme='system'] {
-    --cai-bg: #171d1c;
-    --cai-surface: #222b29;
-    --cai-text: #edf4f1;
-    --cai-muted: #a3b3ad;
-    --cai-border: #394842;
+    --cai-bg: var(--sang-ai-cai-bg, #11141c);
+    --cai-surface: var(--sang-ai-cai-surface, #181d28);
+    --cai-text: var(--sang-ai-cai-text, #f3f5f9);
+    --cai-muted: var(--sang-ai-cai-muted, #949eb0);
+    --cai-border: var(--sang-ai-cai-border, #2a3244);
+    --cai-accent: var(--sang-ai-accent, #4f6ef7);
+    --cai-accent-text: var(--sang-ai-accent-text, #ffffff);
+    --cai-user-bg: var(--sang-ai-cai-user-bg, color-mix(in srgb, var(--cai-accent) 20%, #181d28));
+    --cai-error: #ff8787;
+  }
+}
+
+/* 原项目提取配色 (Extracted Legacy Project Palette — Pine Emerald) */
+:where([data-palette='legacy']) .cai-chat,
+.cai-chat[data-palette='legacy'] {
+  --cai-bg: var(--sang-ai-cai-bg, #f9faf8);
+  --cai-surface: var(--sang-ai-cai-surface, #ffffff);
+  --cai-text: var(--sang-ai-cai-text, #1c2829);
+  --cai-muted: var(--sang-ai-cai-muted, #637171);
+  --cai-border: var(--sang-ai-cai-border, #dce4e1);
+  --cai-accent: var(--sang-ai-accent, #087c6b);
+  --cai-accent-text: var(--sang-ai-accent-text, #ffffff);
+  --cai-user-bg: var(--sang-ai-cai-user-bg, #e4f2ee);
+  --cai-error: #a83232;
+}
+
+:where([data-palette='legacy']) .cai-chat[data-theme='dark'],
+.cai-chat[data-palette='legacy'][data-theme='dark'] {
+  --cai-bg: var(--sang-ai-cai-bg, #171d1c);
+  --cai-surface: var(--sang-ai-cai-surface, #222b29);
+  --cai-text: var(--sang-ai-cai-text, #edf4f1);
+  --cai-muted: var(--sang-ai-cai-muted, #a3b3ad);
+  --cai-border: var(--sang-ai-cai-border, #394842);
+  --cai-accent: var(--sang-ai-accent, #59cfaa);
+  --cai-accent-text: var(--sang-ai-accent-text, #10251c);
+  --cai-user-bg: var(--sang-ai-cai-user-bg, #28443a);
+  --cai-error: #ff9a94;
+}
+
+@media (prefers-color-scheme: dark) {
+  :where([data-palette='legacy']) .cai-chat[data-theme='system'],
+  .cai-chat[data-palette='legacy'][data-theme='system'] {
+    --cai-bg: var(--sang-ai-cai-bg, #171d1c);
+    --cai-surface: var(--sang-ai-cai-surface, #222b29);
+    --cai-text: var(--sang-ai-cai-text, #edf4f1);
+    --cai-muted: var(--sang-ai-cai-muted, #a3b3ad);
+    --cai-border: var(--sang-ai-cai-border, #394842);
     --cai-accent: var(--sang-ai-accent, #59cfaa);
     --cai-accent-text: var(--sang-ai-accent-text, #10251c);
-    --cai-user-bg: #28443a;
+    --cai-user-bg: var(--sang-ai-cai-user-bg, #28443a);
     --cai-error: #ff9a94;
   }
 }

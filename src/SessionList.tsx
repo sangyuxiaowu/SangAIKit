@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Check,
@@ -26,6 +26,7 @@ import {
   ArrowLeftRight
 } from 'lucide-react';
 import type { ChatSession, SessionImage, SessionTool } from './sessionTypes';
+import { ResolvedThemeContext } from './useResolvedTheme';
 
 export interface InsertGalleryImageInput {
   sessionId: string;
@@ -102,6 +103,7 @@ export default function SessionList({
   onDeleteImages,
   onInsertImage
 }: Props) {
+  const resolvedTheme = useContext(ResolvedThemeContext);
   const [view, setView] = useState<'sessions' | 'gallery'>('sessions');
   const [galleryCategory, setGalleryCategory] = useState<ImageCategory>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -706,6 +708,7 @@ export default function SessionList({
         {previewingImage && (
           createPortal(<div
             className="sang-ai-portal fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/65 p-2 backdrop-blur-sm animate-in fade-in duration-150 sm:p-4"
+            data-theme={resolvedTheme}
             onClick={() => setPreviewingImage(null)}
           >
             <div

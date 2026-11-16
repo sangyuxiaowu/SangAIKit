@@ -31,7 +31,7 @@ import SessionList from 'sang-ai-kit/session-list';
 import ToolDuration from './ToolDuration';
 import ChatScrollbar from 'sang-ai-kit/chat-scrollbar';
 import type { AssistantViewProps, ImageUpload } from './assistantTypes';
-import { useResolvedTheme } from './useResolvedTheme';
+import { ResolvedThemeContext, useResolvedTheme } from './useResolvedTheme';
 import { normalizeAiFeatures } from './features';
 import '../generated/sang-ai-utilities.css';
 import './assistant.css';
@@ -236,7 +236,7 @@ export default function AiAssistant({
   if (!open) return null;
 
   return (
-    <>
+    <ResolvedThemeContext.Provider value={resolvedTheme}>
       <aside
         className={`cf-ai-panel ${floating.minimized ? 'cf-ai-minimized' : ''}`}
         data-theme={resolvedTheme}
@@ -926,6 +926,7 @@ export default function AiAssistant({
       {selectedImage && createPortal(
         <div
           className="sang-ai-portal fixed inset-0 z-[240] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-sm"
+          data-theme={resolvedTheme}
           onClick={() => setSelectedImage(null)}
         >
           <div
@@ -961,6 +962,6 @@ export default function AiAssistant({
         </div>,
         document.body
       )}
-    </>
+    </ResolvedThemeContext.Provider>
   );
 }
