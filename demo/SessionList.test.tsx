@@ -151,3 +151,79 @@ it('allows host-defined preview classification and action visibility with generi
     vi.unstubAllGlobals();
   }
 });
+
+it('selects and inverts only the current category and confirms before deleting', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  const onDeleteImages = vi.fn(async () => true);
+  const session: ChatSession = {
+    id: 'session', title: 'Test', updatedAt: 1,
+    entries: [{ content: '', images: [
+      { id: 'p1', name: 'canvas-preview-1.webp', type: 'image/webp', size: 100 },
+      { id: 'p2', name: 'canvas-preview-2.webp', type: 'image/webp', size: 200 },
+      { id: 'gen', name: 'generated-1.png', type: 'image/png', size: 300 }
+    ] }]
+  };
+  const click = async (selector: string) => {
+    const element = host.querySelector<HTMLElement>(selector);
+    expect(element, selector).not.toBeNull();
+    await act(async () => { element!.click(); });
+  };
+  try {
+    await act(async () => { root.render(<SessionList sessions={[session]} activeId="session" disabled={false} english={false} onNew={async () => {}} onSelect={async () => {}} onRename={async () => {}} onDelete={async () => {}} onDeleteImages={onDeleteImages} classifyGalleryImage={image => image.name.includes('preview') ? 'preview' : undefined} />); });
+    await click('[title="点击打开图片画廊并预览保存"]');
+    await click('[title="预览图片"]');
+    await click('[aria-label="批量选择"]');
+    await click('[aria-label="全选当前分类"]');
+    expect(host.querySelectorAll('input:checked')).toHaveLength(2);
+    await click('[aria-label="反选当前分类"]');
+    expect(host.querySelectorAll('input:checked')).toHaveLength(0);
+    await click('input[type="checkbox"]');
+    await click('[aria-label="反选当前分类"]');
+    expect(host.querySelector<HTMLInputElement>('input:checked')?.getAttribute('aria-label')).toContain('preview-2');
+    await click('[aria-label="删除选中图片"]');
+    expect(onDeleteImages).not.toHaveBeenCalled();
+    expect(host.querySelector('[role="alertdialog"]')?.textContent).toContain('1 张图片');
+    const confirm = [...host.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')].find(button => button.textContent === '确认删除')!;
+    await act(async () => { confirm.click(); });
+    expect(onDeleteImages).toHaveBeenCalledWith([{ sessionId: 'session', imageId: 'p2' }]);
+    expect(host.querySelector('[role="alertdialog"]')).toBeNull();
+    await click('[title="显示所有图片素材"]');
+    expect(host.querySelectorAll('input:checked')).toHaveLength(0);
+  } finally {
+    await act(async () => { root.unmount(); });
+    vi.unstubAllGlobals();
+  }
+});
+
+it('offers insertion for generated and attachment images but not previews', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  const onInsertImage = vi.fn(async () => true);
+  const session: ChatSession = {
+    id: 'session', title: 'Test', updatedAt: 1,
+    entries: [
+      { content: 'upload attachment', images: [{ id: 'att1', name: 'logo.png', type: 'image/png', size: 120 }] },
+      { content: '', images: [{ id: 'p1', name: 'canvas-preview-1.webp', type: 'image/webp', size: 100 }],
+        tools: [{ name: 'generate_image', arguments: JSON.stringify({ prompt: 'test image' }),
+          image: { id: 'gen1', name: 'generated-1.png', type: 'image/png', size: 300 } }] }
+    ]
+  };
+  try {
+    await act(async () => root.render(<SessionList sessions={[session]} activeId="session" disabled={false} english={false}
+      imageInsertAction={{ label: '插入到当前画布' }} classifyGalleryImage={image => image.name.includes('preview') ? 'preview' : undefined}
+      onNew={async () => {}} onSelect={async () => {}} onRename={async () => {}} onDelete={async () => {}} onInsertImage={onInsertImage} />));
+    await act(async () => { host.querySelector<HTMLElement>('[title="点击打开图片画廊并预览保存"]')!.click(); });
+    const insertButtons = host.querySelectorAll<HTMLButtonElement>('[title="插入到当前画布"]');
+    expect(insertButtons).toHaveLength(2);
+    await act(async () => { insertButtons[0].click(); });
+    expect(onInsertImage).toHaveBeenCalledWith({ sessionId: 'session', imageId: 'att1', name: 'logo.png', category: 'attachment', prompt: undefined });
+    await act(async () => { insertButtons[1].click(); });
+    expect(onInsertImage).toHaveBeenCalledWith({ sessionId: 'session', imageId: 'gen1', name: 'generated-1.png', category: 'generated', prompt: 'test image' });
+  } finally {
+    await act(async () => { root.unmount(); });
+    vi.unstubAllGlobals();
+  }
+});
