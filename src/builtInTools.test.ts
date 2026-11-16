@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
-import { createBuiltInTools } from './builtInTools';
+import { createBuiltInTools, type ImageToolExtension } from './builtInTools';
 import { createEndpoint } from './modelConfig';
-import { createImageModel } from './image-generation/index';
+import { createImageModel, imageModelToolId } from './image-generation/index';
 import type { AiConfig } from './settingsTypes';
 
 function config(): AiConfig {
@@ -79,4 +79,117 @@ test('does not expose image tools or prompts without an enabled valid model', ()
     expect(builtIn.tools.some(tool => tool.name === 'generate_image')).toBe(false);
     expect(builtIn.instructions).toBe('System');
   }
+});
+
+test('shares Chinese dynamic schemas, short model aliases and credential-free model discovery', async () => {
+  const value = config();
+  value.imageModels![0].id = 'legacy-model-identifier';
+  value.imageModels!.push({ ...value.imageModels![0], id: 'second', description: 'Other model' });
+  const tools = createBuiltInTools(options(value)).tools;
+  const generate = tools.find(tool => tool.name === 'generate_image')!;
+  expect(generate.parameters.required).toEqual(['modelConfigId', 'prompt']);
+  expect(JSON.stringify(generate.parameters)).not.toContain('projectId');
+  expect(JSON.stringify(generate.parameters)).toContain('生图提示词');
+  const listed = await tools.find(tool => tool.name === 'list_image_models')!.execute({}, new AbortController().signal);
+  expect(listed).toMatchObject({ models: [{ id: imageModelToolId(value.imageModels![0]) }, { id: 'second' }] });
+  expect(JSON.stringify(listed)).not.toContain('apiKey');
+  const single = createBuiltInTools(options(config())).tools;
+  expect(single.some(tool => tool.name === 'list_image_models')).toBe(false);
+  expect(single.find(tool => tool.name === 'generate_image')!.parameters.required).toEqual(['prompt']);
+});
+
+test('generates multiple saved images from one original reference without any host parameters', async () => {
+  const originalFetch = globalThis.fetch;
+  const value = config();
+  const source = new Blob([Uint8Array.from(atob('iVBORw0KGgo='), c => c.charCodeAt(0))], { type: 'image/png' });
+  const saved: Blob[] = [];
+  let body: FormData | undefined;
+  globalThis.fetch = Object.assign(async (_url: unknown, init?: RequestInit) => {
+    body = init?.body as FormData;
+    return Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }, { b64_json: 'iVBORw0KGgo=' }] });
+  }, { preconnect: originalFetch.preconnect });
+  try {
+    const tool = createBuiltInTools({ config: value, loadImage: async () => source,
+      saveImage: async (blob, name) => {
+        saved.push(blob);
+        return { id: `image-${saved.length}`, name, type: 'image/png', size: blob.size };
+      } }).tools.find(tool => tool.name === 'generate_image')!;
+    const result = await tool.execute({ prompt: 'City', referenceImageId: 'source', n: 2 }, new AbortController().signal);
+    expect(saved).toHaveLength(2);
+    expect(await saved[0].arrayBuffer()).toEqual(await source.arrayBuffer());
+    expect(body!.get('n')).toBe('2');
+    expect(await (body!.get('image') as File).arrayBuffer()).toEqual(await source.arrayBuffer());
+    expect(result).toMatchObject({ images: [{ id: 'image-1' }, { id: 'image-2' }] });
+    expect(JSON.stringify(result)).not.toContain('base64');
+    await expect(tool.execute({ prompt: 'City', projectId: 'host' }, new AbortController().signal)).rejects.toThrow('parameter');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('host extension injects a schema, supplies original reference bytes and receives results without session saving', async () => {
+  const originalFetch = globalThis.fetch;
+  const source = new Blob([Uint8Array.from(atob('iVBORw0KGgo='), c => c.charCodeAt(0))], { type: 'image/png' });
+  let request: FormData | undefined;
+  let saves = 0;
+  const extension: ImageToolExtension = {
+    description: '生成并交给宿主。',
+    properties: { projectId: { type: 'string' }, referenceLayerId: { type: 'string' } },
+    required: ['projectId'],
+    prepare: async args => {
+      expect(args.referenceLayerId).toBe('layer');
+      return { inputImage: source, complete: async result => ({ layerIds: result.images.map((_, i) => `layer-${i}`), model: result.model }) };
+    }
+  };
+  globalThis.fetch = Object.assign(async (_url: unknown, init?: RequestInit) => {
+    request = init?.body as FormData;
+    return Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }, { b64_json: 'iVBORw0KGgo=' }] });
+  }, { preconnect: originalFetch.preconnect });
+  try {
+    const tool = createBuiltInTools({ config: config(), imageExtensions: { generate_image: extension },
+      saveImage: async (blob, name) => { saves++; return { id: 'saved', name, type: 'image/png', size: blob.size }; } })
+      .tools.find(item => item.name === 'generate_image')!;
+    expect(tool.parameters.required).toEqual(['prompt', 'projectId']);
+    expect(tool.description).toBe('生成并交给宿主。');
+    const result = await tool.execute({ prompt: 'City', projectId: 'p', referenceLayerId: 'layer', n: 2 }, new AbortController().signal);
+    expect(result).toMatchObject({ layerIds: ['layer-0', 'layer-1'] });
+    expect(await (request!.get('image') as File).arrayBuffer()).toEqual(await source.arrayBuffer());
+    expect(saves).toBe(0);
+    await expect(tool.execute({ prompt: 'City', referenceLayerId: 'layer' }, new AbortController().signal)).rejects.toThrow('projectId');
+    expect(() => createBuiltInTools({ config: config(), imageExtensions: { generate_image: { ...extension, properties: { prompt: { type: 'string' } } } } })).toThrow('conflicts');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('host application failure saves recovery images and blocks repeated generation in the same turn', async () => {
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  const saved: string[] = [];
+  const extension: ImageToolExtension = {
+    description: '宿主工具', properties: {}, prepare: async () => ({
+      complete: async () => { throw new Error('Save may have applied'); }
+    })
+  };
+  globalThis.fetch = Object.assign(async () => { requests++; return Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }] }); }, { preconnect: originalFetch.preconnect });
+  try {
+    const tool = createBuiltInTools({ config: { ...config(), maxImageFailures: 1 }, imageExtensions: { generate_image: extension },
+      saveImage: async (blob, name) => ({ id: 'recovery', name, type: 'image/png', size: blob.size }),
+      onImage: image => { saved.push(image.id); } }).tools.find(item => item.name === 'generate_image')!;
+    await expect(tool.execute({ prompt: 'City' }, new AbortController().signal)).rejects.toThrow('Recovery image IDs: recovery');
+    await expect(tool.execute({ prompt: 'City' }, new AbortController().signal)).rejects.toThrow('Do not retry');
+    expect(requests).toBe(1);
+    expect(saved).toEqual(['recovery']);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('reports both application and recovery-storage failures', async () => {
+  const originalFetch = globalThis.fetch;
+  const extension: ImageToolExtension = {
+    description: '宿主工具', properties: {}, prepare: async () => ({
+      complete: async () => { throw new Error('Canvas failed'); }
+    })
+  };
+  globalThis.fetch = Object.assign(async () => Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }] }), { preconnect: originalFetch.preconnect });
+  try {
+    const tool = createBuiltInTools({ config: config(), imageExtensions: { generate_image: extension },
+      saveImage: async () => { throw new Error('Storage full'); } }).tools.find(item => item.name === 'generate_image')!;
+    await expect(tool.execute({ prompt: 'City' }, new AbortController().signal)).rejects.toThrow('Canvas failed. No recovery images were saved. Recovery saving failed: Storage full.');
+  } finally { globalThis.fetch = originalFetch; }
 });

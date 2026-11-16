@@ -96,8 +96,8 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {text(
-                  '模型和运行时需在线下载，推理在浏览器本地执行',
-                  'Models and runtime are downloaded online; images are processed locally.'
+                  '首次抠图自动下载缺失模型和运行时，推理在浏览器本地执行',
+                  'Missing models and runtime download automatically on first use; images are processed locally.'
                 )}
               </p>
             </div>
@@ -138,9 +138,9 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                 onChange={event => void update({ modelId: event.target.value as ModelId })}
                 className="w-full bg-slate-950/80 border border-slate-800 focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/30 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 outline-none transition-all cursor-pointer"
               >
-                {MODELS.map(model => <option key={model.id} value={model.id} disabled={!state.models[model.id]}>
+                {MODELS.map(model => <option key={model.id} value={model.id}>
                   {model.name} · {((state.models[model.id]?.blob.size ?? model.size) / 1_000_000).toFixed(1)} MB
-                  {!state.models[model.id] ? text(' [未安装]', ' [Not installed]') : ''}
+                  {!state.models[model.id] ? text(' [使用时自动下载]', ' [Auto-download on use]') : ''}
                 </option>)}
               </select>
             </div>
@@ -354,7 +354,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                 <div className="pt-3 border-t border-slate-800/80">
                   <div className="cf-removal-actions flex items-center gap-2 flex-wrap">
                     {!model.variants && (
-                      <button type="button" disabled={busy || !state.runtime}
+                      <button type="button" disabled={busy}
                         onClick={() => void perform(async (signal, report) => {
                           const blob = await downloadModel(model.id, signal, report);
                           await acceptModel(model.id, blob, `${model.id}.onnx`, signal, report);
@@ -367,7 +367,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                       <button
                         key={variant.precision}
                         type="button"
-                        disabled={busy || !state.runtime}
+                        disabled={busy}
                         onClick={() => void perform(async (signal, report) => {
                           const blob = await downloadModel(model.id, signal, report, variant.precision);
                           const name = new URL(variant.url).pathname.split('/').at(-1) || `${model.id}_${variant.precision}.onnx`;
@@ -383,7 +383,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                     {available && (
                       <button
                         type="button"
-                        disabled={busy || !state.runtime}
+                        disabled={busy}
                         onClick={() => void perform(async (signal, report) => {
                           const resources = await loadResources(model.id, signal);
                           const provider = await verifyModel(model.id, resources.model, state.settings.device, { signal, onProgress: report });

@@ -34,7 +34,7 @@ export { runToolLoop } from './toolLoop';
 export { MAX_SKILLS, MAX_SKILL_CONTENT, normalizeSkills, skillsPrompt, readSkill } from './skills';
 export { DEFAULT_AI_FEATURES, normalizeAiFeatures } from './features';
 export { createBuiltInTools } from './builtInTools';
-export type { BuiltInToolOptions } from './builtInTools';
+export type { BuiltInToolOptions, ImageToolExtension, ImageToolExtensions, ImageToolResult, ImageToolSchemaExtension } from './builtInTools';
 export { applyColorMatting, removeColorBackground } from './background-removal/colorMatting';
 export type { BrushStroke, MattingOptions } from './background-removal/colorMatting';
 export { default as ColorMattingEditor } from './background-removal/ColorMattingEditor';

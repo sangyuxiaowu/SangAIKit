@@ -32,6 +32,7 @@ export default function DemoIntegrationSettings({
     ...(features.backgroundRemoval ? ['remove_background'] : []),
     ...(features.fontManagement ? ['list_fonts'] : []),
     ...(features.skills && skillCount ? ['skill'] : []),
+    ...(features.imageGeneration && validImageModelCount > 1 ? ['list_image_models'] : []),
     ...(features.imageGeneration && validImageModelCount ? ['generate_image'] : [])
   ];
 

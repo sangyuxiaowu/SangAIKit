@@ -1,5 +1,5 @@
-import { loadResources } from './resources.ts';
-import { readRuntime, readSettings, saveModel } from './storage.ts';
+import { downloadModel, ensureRuntime, loadResources } from './resources.ts';
+import { readModel, readSettings, saveModel } from './storage.ts';
 import { validateModel, type ModelId } from './models.ts';
 import type { DeviceMode, Progress, Provider, RuntimeFiles, WorkerRequest, WorkerResponse } from './types.ts';
 
@@ -39,8 +39,23 @@ export function runWorker(request: WorkerRequest, options: RunOptions): Promise<
 }
 
 export async function removeBackground(image: Blob, options: RemovalOptions): Promise<{ blob: Blob; provider: Provider; modelId: ModelId }> {
+  options.signal.throwIfAborted();
   const defaults = options.modelId && options.device ? { modelId: options.modelId, device: options.device } : await readSettings();
   const settings = { modelId: options.modelId ?? defaults.modelId, device: options.device ?? defaults.device };
+  await ensureRuntime(options.signal, options.onProgress);
+  options.signal.throwIfAborted();
+  if (!await readModel(settings.modelId)) {
+    try {
+      options.onProgress?.({ stage: 'download' });
+      const blob = await downloadModel(settings.modelId,
+        AbortSignal.any([options.signal, AbortSignal.timeout(600_000)]), options.onProgress);
+      options.onProgress?.({ stage: 'verify' });
+      await installModel(settings.modelId, blob, `${settings.modelId}.onnx`, settings.device, options);
+    } catch (error) {
+      options.signal.throwIfAborted();
+      throw new Error(`抠图模型自动下载或验证失败，请重试：${error instanceof Error ? error.message : String(error)}`, { cause: error });
+    }
+  }
   const resources = await loadResources(settings.modelId, options.signal);
   const result = await runWorker({ ...resources, ...settings, image }, options);
   return { ...result, modelId: settings.modelId };
@@ -49,8 +64,7 @@ export async function removeBackground(image: Blob, options: RemovalOptions): Pr
 export async function verifyModel(modelId: ModelId, model: Blob, device: DeviceMode, options: RunOptions,
   runtimeOverride?: RuntimeFiles): Promise<Provider> {
   await validateModel(modelId, model);
-  const runtime = runtimeOverride || await readRuntime();
-  if (!runtime) throw new Error('RUNTIME_MISSING');
+  const runtime = runtimeOverride || await ensureRuntime(options.signal, options.onProgress);
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 32;
   const context = canvas.getContext('2d');

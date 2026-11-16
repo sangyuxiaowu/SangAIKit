@@ -54,7 +54,7 @@ bun run dev
 
 图片画廊的插入操作由 `assistant.insertImage` 提供；未提供时不显示按钮。`AiAssistant` 的 `imageInsertAction` 可随宿主状态更新 `visible`、`enabled`、`label`、`successLabel` 和 `disabledReason`，`isVisible(item)` 可控制单张图片的按钮；默认不显示预览图的插入按钮。文案由宿主按当前语言提供，未配置时使用通用文案。宿主负责读取图片、决定插入位置及处理失败。默认将内置生图识别为生成图片，其余归为附件；宿主可通过 `classifyGalleryImage(image, tools)` 返回 `generated`、`preview` 或 `attachment`，返回 `undefined` 时使用默认分类。删除图片的回调由宿主负责实际清理，画廊不假设外部引用的存储方式。
 
-宿主可通过 `createResponsesSender({ tools: [...] })` 注册函数工具；每个工具提供 JSON Schema 与 `execute`，并负责在执行前做参数校验、权限控制与必要的用户确认。普通结果保持 JSON 文本；需要让模型查看文档页面预览或其他图片时，可返回 `ResponsesToolContent`，详见 [多模态工具结果](docs/03-features-and-tools.md#多模态工具结果)。工具执行状态可通过 `onTool` 回传界面，生图结果应通过会话图片存储保存，不能把付费或有副作用的工具默认当作可回滚操作。
+宿主可通过 `createResponsesSender({ tools: [...] })` 注册函数工具；每个工具提供 JSON Schema 与 `execute`，并负责在执行前做参数校验、权限控制与必要的用户确认。普通结果保持 JSON 文本；需要让模型查看文档页面预览或其他图片时，可返回 `ResponsesToolContent`，详见 [多模态工具结果](docs/03-features-and-tools.md#多模态工具结果)。工具执行状态可通过 `onTool` 回传界面；生图结果默认保存至会话，也可通过宿主扩展直接应用，不能把付费或有副作用的工具默认当作可回滚操作。
 
 在接入时将同一组 `features` 传给 `AiAssistant`、`AiSettings` 和 `createResponsesSender` 的 `builtIn` 参数。例如：
 
@@ -76,7 +76,7 @@ const send = createResponsesSender({
 
 模型配置页的“连接测试”会真实请求当前端点和模型的 Responses API，固定发送 system `this is a test` 与 user `Say OK`；请求不注册工具、不保存服务端会话，30 秒超时。测试使用模型当前的思考开关和强度，不支持思考时不发送思考参数；关闭 Agnes 思考时使用 `chat_template_kwargs.enable_thinking: false`，其他模型使用 `reasoning.effort: none`。只有返回正常的非空文本才显示成功。该测试验证 Responses API 可用性，不验证图像生成端点或其他自定义工具。
 
-生图、SKILL、字体和抠图工具由组件库内置，发送器每轮创建独立工具实例；也可以手动调用 `createBuiltInTools({ config, features, loadImage, saveImage })`，将返回的 `tools` 与宿主业务工具合并。抠图开启且提供图片读写适配器时自动注册；不要与同名宿主工具重复注册。即使接入生图，没有已启用且有效的生图模型或缺少图片读写适配器时，也不会注册生图工具或追加生图提示词。宿主仍应提供自己的权限和确认机制。
+生图、SKILL、字体和抠图工具由组件库内置，发送器每轮创建独立工具实例；也可以手动调用 `createBuiltInTools({ config, features, loadImage, saveImage })`，将返回的 `tools` 与宿主业务工具合并。图片工具可使用会话读写适配器或宿主扩展，不要与同名宿主工具重复注册。没有已启用且有效的生图模型，或既没有图片读写适配器也没有生图宿主扩展时，不会注册生图工具或追加生图提示词。宿主仍应提供自己的权限和确认机制，详见[内置工具链](docs/03-features-and-tools.md#内置工具链-createbuiltintools)。
 
 例如，使用自己的后端代理时，可先实现会话存储和发送适配器：
 

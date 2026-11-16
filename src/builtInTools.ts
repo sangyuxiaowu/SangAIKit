@@ -2,12 +2,17 @@ import type { ResponsesTool } from './openai';
 import type { AiConfig } from './settingsTypes';
 import type { SessionImage } from './sessionTypes';
 import type { ImageQuality } from './image-generation/types';
-import { availableImageModels, generateImages } from './image-generation/index';
+import { availableImageModels, generateImages, imageCapabilities, imageModelToolId, imageTimeoutSeconds } from './image-generation/index';
 import { blobToDataUrl } from './imageAttachments';
 import { listFonts, normalizeLocalFonts } from './fonts';
 import { normalizeAiFeatures, type AiFeatures } from './features';
 import { normalizeSkills, readSkill, skillsPrompt } from './skills';
 import { createBackgroundRemovalTool } from './background-removal/tool';
+import { builtInToolDefinitions } from './builtInToolDefinitions';
+import { deliverImageResult, ImageApplicationError, type ImageToolExtension, type ImageToolExtensions } from './imageToolHost';
+
+export { builtInToolDefinitions, imageToolDefinitions } from './builtInToolDefinitions';
+export type { ImageToolExtension, ImageToolExtensions, ImageToolResult, ImageToolSchemaExtension } from './imageToolHost';
 
 export interface BuiltInToolOptions {
   config: AiConfig;
@@ -15,6 +20,7 @@ export interface BuiltInToolOptions {
   loadImage?: (imageId: string) => Promise<Blob | null>;
   saveImage?: (blob: Blob, name: string) => Promise<SessionImage>;
   onImage?: (image: SessionImage) => void;
+  imageExtensions?: ImageToolExtensions<ImageToolExtension>;
 }
 
 export function createBuiltInTools(options: BuiltInToolOptions): { tools: ResponsesTool[]; instructions: string } {
@@ -23,54 +29,90 @@ export function createBuiltInTools(options: BuiltInToolOptions): { tools: Respon
   if (config.maxImageFailures !== undefined && (!Number.isSafeInteger(config.maxImageFailures) || config.maxImageFailures < 0)) throw new Error('Image failure limit must be a non-negative safe integer.');
   const skills = features.skills ? normalizeSkills(config.skills) : [];
   const fonts = features.fontManagement ? normalizeLocalFonts(config.localFonts) : [];
-  const imageModels = features.imageGeneration && options.loadImage && options.saveImage ? availableImageModels(config) : [];
-  const tools: ResponsesTool[] = [];
-  if (features.backgroundRemoval && options.loadImage && options.saveImage) tools.push(createBackgroundRemovalTool(options));
-  if (features.fontManagement) tools.push({
-    name: 'list_fonts', description: 'List available local and online fonts.', parameters: { type: 'object', properties: {} },
-    execute: async args => { if (Object.keys(args).length) throw new Error('list_fonts does not accept parameters.'); return listFonts(fonts, { localFonts: true, onlineFonts: features.onlineFonts }); }
-  });
-  if (skills.length) tools.push({
-    name: 'skill', description: 'Read the full text of an available skill.',
-    parameters: { type: 'object', properties: { name: { type: 'string', enum: skills.map(skill => skill.name) } }, required: ['name'] },
-    execute: async args => readSkill(skills, args)
-  });
+  const imageModels = features.imageGeneration && ((options.loadImage && options.saveImage) || options.imageExtensions?.generate_image) ? availableImageModels(config) : [];
   let failures = 0;
-  if (imageModels.length) tools.push({
-    name: 'generate_image', description: `Generate images using a configured model: ${imageModels.map(item => `${item.label} (${item.id})`).join(', ')}.`,
-    parameters: { type: 'object', properties: { modelConfigId: { type: 'string', enum: imageModels.map(item => item.id) }, prompt: { type: 'string' }, referenceImageId: { type: 'string' }, size: { type: 'string' }, ratio: { type: 'string' }, quality: { type: 'string' }, n: { type: 'integer' } }, required: ['modelConfigId', 'prompt'] },
+  const applicationFailures = new Set<string>();
+  const tools: ResponsesTool[] = builtInToolDefinitions({ features, skills, imageModels, imageStorage: Boolean(options.loadImage && options.saveImage), imageExtensions: options.imageExtensions }).map(definition => ({
+    ...definition,
     execute: async (args, signal) => {
+      signal.throwIfAborted();
+      if (applicationFailures.has(definition.name)) throw new Error('Image application failed in this turn. Do not retry processing without a new user request.');
+      if (definition.name === 'remove_background') {
+        try { return await createBackgroundRemovalTool({ ...options, extension: options.imageExtensions?.remove_background }).execute(args, signal); }
+        catch (error) {
+          if (error instanceof ImageApplicationError) applicationFailures.add(definition.name);
+          throw error;
+        }
+      }
+      if (definition.name === 'skill') return readSkill(skills, args);
+      if (definition.name === 'list_fonts' || definition.name === 'list_image_models') {
+        if (Object.keys(args).length) throw new Error(`${definition.name} does not accept parameters.`);
+        if (definition.name === 'list_fonts') return listFonts(fonts, { localFonts: true, onlineFonts: features.onlineFonts });
+        return { models: imageModels.map(model => {
+          const { sizePattern, sizeDescription, ...capabilities } = imageCapabilities(model);
+          return { id: imageModelToolId(model), label: model.label, description: model.description,
+            version: model.version?.trim() || null, releasedAt: model.releasedAt || null, timeoutSeconds: imageTimeoutSeconds(model),
+            defaultSize: model.size, ...capabilities,
+            ...(capabilities.ratios ? { defaultRatio: model.ratio } : {}),
+            ...(capabilities.qualities ? { defaultQuality: model.quality ?? 'high' } : {}) };
+        }) };
+      }
       const maxFailures = config.maxImageFailures ?? 3;
       if (maxFailures > 0 && failures >= maxFailures) throw new Error('Image generation failure limit reached in this turn.');
+      let prepared: Awaited<ReturnType<ImageToolExtension['prepare']>> | undefined;
+      let results: Blob[];
+      let model: string;
+      let prompt: string;
       try {
         signal.throwIfAborted();
-        if (Object.keys(args).some(key => !['modelConfigId', 'prompt', 'referenceImageId', 'size', 'ratio', 'quality', 'n'].includes(key))) throw new Error('Unknown image generation parameter.');
-        if (typeof args.modelConfigId !== 'string' || typeof args.prompt !== 'string') throw new Error('A model ID and prompt are required.');
+        if (Object.keys(args).some(key => !['modelConfigId', 'prompt', 'referenceImageId', 'size', 'ratio', 'quality', 'n'].includes(key) && !Object.hasOwn(options.imageExtensions?.generate_image?.properties ?? {}, key))) throw new Error('Unknown image generation parameter.');
+        for (const key of options.imageExtensions?.generate_image?.required ?? []) if (args[key] === undefined) throw new Error(`${key} is required.`);
+        const modelId = args.modelConfigId ?? (imageModels.length === 1 ? imageModelToolId(imageModels[0]) : undefined);
+        if (typeof modelId !== 'string' || typeof args.prompt !== 'string') throw new Error('A model ID and prompt are required.');
+        const matches = imageModels.filter(model => imageModelToolId(model) === modelId);
+        if (matches.length !== 1) throw new Error('Image model is disabled, unavailable or ambiguous. Read list_image_models when multiple models are enabled.');
         if (args.referenceImageId !== undefined && typeof args.referenceImageId !== 'string') throw new Error('Invalid reference image ID.');
         if (args.size !== undefined && typeof args.size !== 'string') throw new Error('Invalid image size.');
         if (args.ratio !== undefined && typeof args.ratio !== 'string') throw new Error('Invalid image ratio.');
         if (args.quality !== undefined && (typeof args.quality !== 'string' || !['low', 'medium', 'high', 'xhigh', 'max', 'auto'].includes(args.quality))) throw new Error('Invalid image quality.');
         if (args.n !== undefined && (typeof args.n !== 'number' || !Number.isInteger(args.n))) throw new Error('Invalid image count.');
+        prepared = await options.imageExtensions?.generate_image?.prepare(args, signal);
+        if (prepared?.inputImage && args.referenceImageId !== undefined) throw new Error('Only one reference image is supported.');
         let reference: string | undefined;
         if (typeof args.referenceImageId === 'string') {
+          if (!options.loadImage) throw new Error('Image storage is not configured.');
           const blob = await options.loadImage!(args.referenceImageId);
           if (!blob) throw new Error('Reference image not found.');
           reference = await blobToDataUrl(blob);
-        }
-        const results = await generateImages(config, { modelConfigId: args.modelConfigId, prompt: args.prompt,
+        } else if (prepared?.inputImage) reference = await blobToDataUrl(prepared.inputImage);
+        results = await generateImages(config, { modelConfigId: matches[0].id, prompt: args.prompt,
           ...(typeof args.size === 'string' ? { size: args.size } : {}), ...(typeof args.ratio === 'string' ? { ratio: args.ratio } : {}),
           ...(typeof args.quality === 'string' ? { quality: args.quality as ImageQuality } : {}), ...(typeof args.n === 'number' ? { n: args.n } : {})
         }, signal, reference);
-        const saved: SessionImage[] = [];
+        model = matches[0].modelId;
+        prompt = args.prompt;
+      } catch (error) { if (!signal.aborted) failures++; throw error; }
+      if (prepared) {
+        try { return await deliverImageResult(prepared, { images: results, model, prompt }, signal, options.saveImage, options.onImage); }
+        catch (error) {
+          if (error instanceof ImageApplicationError) applicationFailures.add(definition.name);
+          throw error;
+        }
+      }
+      const saved: SessionImage[] = [];
+      try {
         for (const blob of results) {
+          signal.throwIfAborted();
           const image = await options.saveImage!(blob, `generated-${Date.now()}-${saved.length + 1}.${blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png'}`);
           saved.push(image);
           options.onImage?.(image);
         }
-        return { images: saved.map(image => ({ id: image.id, name: image.name, type: image.type, size: image.size })) };
+        signal.throwIfAborted();
+        return { images: saved.map(image => ({ id: image.id, name: image.name, type: image.type, size: image.size })),
+          model, prompt };
       } catch (error) { if (!signal.aborted) failures++; throw error; }
     }
-  });
+  }));
   const imagePrompt = imageModels.length ? config.imageToolPrompt?.trim() : '';
   const skillPrompt = skillsPrompt(skills);
   const basePrompt = imagePrompt && !config.systemPrompt.includes(imagePrompt) ? `${config.systemPrompt}\n\n${imagePrompt}` : config.systemPrompt;

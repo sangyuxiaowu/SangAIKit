@@ -41,6 +41,15 @@ afterEach(async () => {
 });
 
 describe('model activation settings', () => {
+  it('allows choosing an uncached model and downloading without a preinstalled runtime', async () => {
+    vi.mocked(useResources).mockReturnValue({ ...useResources(), runtime: false, models: {} });
+    await act(async () => root.render(<BackgroundRemovalSettings english={false} />));
+    const model = container.querySelector<HTMLSelectElement>('#removal-active-model')!;
+    expect([...model.options].every(option => !option.disabled)).toBe(true);
+    await act(async () => { model.value = 'modnet'; model.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(saveSettings).toHaveBeenCalledWith({ modelId: 'modnet', device: 'wasm' });
+    expect([...container.querySelectorAll('button')].find(button => button.textContent?.includes('下载模型'))!.disabled).toBe(false);
+  });
   it('downloads U2NetP instead of treating it as bundled', async () => {
     const card = [...container.querySelectorAll('article')].find(article => article.querySelector('strong')?.textContent === 'U2NetP')!;
     expect(card.textContent).toContain('未安装');

@@ -38,7 +38,7 @@ export async function download(url: string, maximum: number, signal: AbortSignal
   }
   signal.throwIfAborted();
   if (!loaded) throw new Error('Downloaded file is empty');
-  return new Blob(chunks);
+  return new Blob(chunks, { type: response.headers.get('content-type')?.split(';')[0].trim() || '' });
 }
 
 export async function validateRuntime(files: RuntimeFiles): Promise<void> {
@@ -62,6 +62,25 @@ export async function installRuntime(signal: AbortSignal, onProgress?: (progress
   await saveRuntime(files);
 }
 
+export async function ensureRuntime(signal: AbortSignal, onProgress?: (progress: Progress) => void): Promise<RuntimeFiles> {
+  signal.throwIfAborted();
+  const cached = await readRuntime();
+  signal.throwIfAborted();
+  if (cached) return cached;
+  try {
+    onProgress?.({ stage: 'runtime_download' });
+    await installRuntime(AbortSignal.any([signal, AbortSignal.timeout(180_000)]),
+      progress => onProgress?.({ ...progress, stage: 'runtime_download' }));
+    signal.throwIfAborted();
+    const runtime = await readRuntime();
+    if (!runtime) throw new Error('运行时下载完成但缓存不可用。');
+    return runtime;
+  } catch (error) {
+    signal.throwIfAborted();
+    throw new Error(`运行时下载失败，请重试：${error instanceof Error ? error.message : String(error)}`, { cause: error });
+  }
+}
+
 export async function importRuntime(files: File[]): Promise<void> {
   const runtime = {} as RuntimeFiles;
   for (const key of Object.keys(RUNTIME_ASSETS) as (keyof RuntimeFiles)[]) {
@@ -75,8 +94,7 @@ export async function importRuntime(files: File[]): Promise<void> {
 }
 
 export async function loadResources(id: ModelId, signal: AbortSignal): Promise<{ model: Blob; runtime: RuntimeFiles }> {
-  const runtime = await readRuntime();
-  if (!runtime) throw new Error('RUNTIME_MISSING');
+  const runtime = await ensureRuntime(signal);
   const stored = await readModel(id);
   const model = stored?.blob;
   if (!model) throw new Error('MODEL_MISSING');

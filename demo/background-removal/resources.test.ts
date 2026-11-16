@@ -13,12 +13,13 @@ describe('optional removal resources', () => {
     });
   });
   it('downloads directly without credentials and reports bytes', async () => {
-    const fetch = vi.fn(async () => new Response(new Uint8Array([8, 1, 2]), { headers: { 'content-length': '3' } }));
+    const fetch = vi.fn(async () => new Response(new Uint8Array([8, 1, 2]), { headers: { 'content-length': '3', 'content-type': 'image/png' } }));
     vi.stubGlobal('fetch', fetch);
     const report = vi.fn();
     const signal = new AbortController().signal;
     const blob = await download('https://example.com/model.onnx', 100, signal, report);
     expect(blob.size).toBe(3);
+    expect(blob.type).toBe('image/png');
     expect(fetch).toHaveBeenCalledWith('https://example.com/model.onnx', {
       signal, credentials: 'omit', referrerPolicy: 'no-referrer'
     });

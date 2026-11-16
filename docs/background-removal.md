@@ -2,7 +2,11 @@
 
 SangAIKit 提供无需模型的颜色抠图和基于 ONNX 的本地智能抠图。图片在本地处理，不上传服务端；宿主负责图层、权限、撤销及结果应用。设置 `features.backgroundRemoval` 控制设置页与内置 `remove_background` 工具，默认开启，关闭不删除已下载资源。
 
-通用工具使用 `imageId` 读取会话图片并保存结果，仅在宿主同时提供 `loadImage`、`saveImage` 时注册。默认 `modelId: "color"`；支持 `color`（`#RRGGBB`，默认白色）、`tolerance`（0–100，默认 25）、`contiguous`（默认 true，从图片边缘开始）和 `feather`（0–10 像素，默认 1.5）。模型模式接受 `u2netp`、`birefnet`、`modnet`，必须先在设置页下载模型；缺少运行时则按需下载，最长等待 180 秒。宿主的工作区工具可以使用自己的图层参数和结果应用逻辑，不应与通用工具重复注册。
+通用工具默认使用 `imageId` 读取会话原图并保存结果，在宿主提供成对图片读写回调或抠图宿主扩展时注册。默认改为 `modelId: "u2netp"`，与 CoverFlow 已验证的默认行为一致；颜色抠图须显式指定 `modelId: "color"`。颜色参数统一放在可选的 `colorOptions` 对象中，不再接受顶层颜色参数：`color`（`#RRGGBB`，默认白色）、`tolerance`（0–100，默认 25）、`contiguous`（默认 true，从图片边缘开始）和 `feather`（0–10 像素，默认 1.5）。对象及其字段均可省略，例如 `{ "imageId": "source", "modelId": "color", "colorOptions": { "color": "#ffffff", "tolerance": 20 } }`。AI 模型接受 `u2netp`、`birefnet`、`modnet`，支持 `device: auto/webgpu/wasm`，默认 auto。
+
+工具与手动入口共用 `removeBackground`：缺少运行时则自动下载（最长 180 秒），缺少所选模型则自动下载（最长 600 秒）、实际推理验证并缓存，然后继续处理原图。已有缓存不重复下载；取消会停止后续推理和结果保存，下载或验证失败如实报告，可由用户重试，不保存半成品模型。首次使用需联网，图片不上传；后续可离线复用缓存。自动下载不修改用户的默认模型设置。
+
+宿主可通过[图片工具扩展](./03-features-and-tools.md#内置工具链-createbuiltintools)提供原图并直接接收结果 Blob，无需另写同名抠图定义或下载流程。项目、页面、图层锁定、原图变化、保留原图和保存由宿主负责；没有扩展时仍使用会话图片协议。
 
 `applyColorMatting` 也支持以 `startX`、`startY` 为连通区域起点。
 

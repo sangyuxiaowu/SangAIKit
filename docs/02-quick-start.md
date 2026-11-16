@@ -85,7 +85,7 @@ const runner: AssistantRunner = async (messages, events) => {
 
 1. **`createBrowserAiStore`**：在 IndexedDB 中持久化 `AiConfig`，并对所有端点的 `apiKey` 进行 AES-256-GCM 透明加解密。
 2. **`createIndexedDbImageStore`**：按 `sessionId` 与 `imageId` 存储用户上传附件与 AI 生成图像。
-3. **`createResponsesSender`**：构建兼容 OpenAI Responses API 的流式发送器，自动装配内置工具（`generate_image`、`skill`、`list_fonts`）并驱动多轮工具调用。
+3. **`createResponsesSender`**：构建兼容 OpenAI Responses API 的流式发送器；显式提供 `builtIn` 时按能力装配 `generate_image`、`list_image_models`、`remove_background`、`skill`、`list_fonts`，并驱动多轮工具调用。
 4. **`useFloatingPanel`**：接管浮窗的位置记忆、拖拽边界吸附、指针缩放与键盘方向键微调（`ArrowKeys` + `Shift`）。
 
 ```tsx
