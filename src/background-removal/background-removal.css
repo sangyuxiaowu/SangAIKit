@@ -1,7 +1,10 @@
-/* 模块：抠图相关样式增强 */
+/* ==========================================================================
+   模块：智能抠图设置面板主题与色彩适配 (BackgroundRemovalSettings)
+   自动跟随 SangAIKit 深浅模式 (data-theme="dark" | "light") 与多套主题调色板 (--ai-*)
+   ========================================================================== */
 
 .cf-removal-settings {
-  color: #cbd5e1;
+  color: var(--ai-text-secondary, #d5dbe6);
   font-size: 12px;
   min-width: 0;
 }
@@ -9,15 +12,16 @@
 .cf-removal-heading {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #e2e8f0;
-  margin-bottom: 20px;
+  gap: 12px;
+  color: var(--ai-text, #f3f5f9);
+  margin-bottom: 0;
 }
 
 .cf-removal-heading h3 {
   font-size: 15px;
   font-weight: 700;
   margin: 0;
+  color: var(--ai-text, #f3f5f9);
 }
 
 .cf-removal-controls {
@@ -27,42 +31,54 @@
   align-items: center;
 }
 
-.cf-removal-controls select {
+.cf-removal-controls select,
+.cf-removal-settings select {
   width: 100%;
   min-width: 0;
-  padding: 8px 12px;
-  color: #e2e8f0;
-  background: #090d16;
-  border: 1px solid #334155;
-  border-radius: 10px;
+  color: var(--ai-text, #f3f5f9);
+  background-color: var(--ai-input-bg, rgba(11, 14, 20, 0.88));
+  border: 1px solid var(--ai-border, rgba(56, 65, 82, 0.68));
+  border-radius: 12px;
   font-size: 12px;
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
-.cf-removal-controls select:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+.cf-removal-controls select:focus,
+.cf-removal-settings select:focus {
+  border-color: var(--ai-accent, #4f6ef7);
+  box-shadow: 0 0 0 2px var(--ai-accent-bg, rgba(79, 110, 247, 0.18));
 }
 
+.cf-removal-settings select option {
+  background-color: var(--ai-dialog-bg, #11141c);
+  color: var(--ai-text, #f3f5f9);
+}
+
+/* 顶部介绍横幅卡片 */
+.cf-removal-banner {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ai-accent, #4f6ef7) 18%, var(--ai-surface, rgba(26, 31, 43, 0.85))) 0%,
+    var(--ai-surface, rgba(26, 31, 43, 0.82)) 52%,
+    color-mix(in srgb, var(--ai-accent-soft, #818cf8) 12%, var(--ai-dialog-bg, #11141c)) 100%
+  );
+  border-color: var(--ai-accent-border, rgba(79, 110, 247, 0.32));
+  box-shadow: 0 10px 28px -10px color-mix(in srgb, var(--ai-accent, #4f6ef7) 16%, rgba(0, 0, 0, 0.35));
+}
+
+.cf-removal-pill {
+  background: color-mix(in srgb, var(--ai-surface, #1a1f2b) 88%, var(--ai-dialog-bg, #11141c));
+  border-color: var(--ai-border, rgba(56, 65, 82, 0.68));
+  color: var(--ai-text-secondary, #d5dbe6);
+}
+
+/* 通用分组卡片与运行时卡片 */
+.cf-removal-card,
 .cf-removal-runtime {
-  margin: 20px 0;
-  padding: 18px;
-  border: 1px solid #1e293b;
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.4);
-}
-
-.cf-removal-runtime > div:first-child {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.cf-removal-runtime span {
-  color: #94a3b8;
+  border: 1px solid var(--ai-border, rgba(56, 65, 82, 0.68));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ai-surface, rgba(26, 31, 43, 0.82)) 72%, transparent);
 }
 
 .cf-removal-actions {
@@ -72,33 +88,6 @@
   align-items: center;
 }
 
-.cf-removal-actions button,
-.cf-removal-actions a,
-.cf-removal-status button {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-  padding: 6px 12px;
-  color: #cbd5e1;
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.cf-removal-actions button:hover:not(:disabled),
-.cf-removal-actions a:hover {
-  background: #334155;
-  color: #ffffff;
-  border-color: #475569;
-}
-
 .cf-removal-actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -106,15 +95,8 @@
 
 .cf-removal-settings button:focus-visible,
 .cf-removal-settings a:focus-visible {
-  outline: 2px solid #38bdf8;
+  outline: 2px solid var(--ai-accent, #4f6ef7);
   outline-offset: 2px;
-}
-
-.cf-removal-runtime details {
-  margin-top: 14px;
-  color: #94a3b8;
-  border-top: 1px solid #1e293b;
-  padding-top: 12px;
 }
 
 .cf-removal-runtime summary {
@@ -123,20 +105,7 @@
   user-select: none;
 }
 
-.cf-removal-runtime details a {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  color: #7dd3fc;
-  margin-top: 8px;
-  overflow-wrap: anywhere;
-  text-decoration: none;
-}
-
-.cf-removal-runtime details a:hover {
-  text-decoration: underline;
-}
-
+/* 模型卡片网格 */
 .cf-removal-models {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -145,15 +114,24 @@
 
 .cf-removal-model {
   min-width: 0;
-  border: 1px solid #1e293b;
-  border-radius: 14px;
-  padding: 18px;
-  background: rgba(15, 23, 42, 0.4);
-  transition: all 0.2s ease;
+  border: 1px solid var(--ai-border, rgba(56, 65, 82, 0.68));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ai-surface, rgba(26, 31, 43, 0.82)) 68%, transparent);
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .cf-removal-model:hover {
-  border-color: #334155;
+  border-color: color-mix(in srgb, var(--ai-accent, #4f6ef7) 38%, var(--ai-border, #384152));
+}
+
+.cf-removal-model.is-active {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ai-accent, #4f6ef7) 16%, var(--ai-surface, rgba(26, 31, 43, 0.88))) 0%,
+    color-mix(in srgb, var(--ai-surface, rgba(26, 31, 43, 0.88)) 92%, var(--ai-dialog-bg, #11141c)) 100%
+  );
+  border-color: color-mix(in srgb, var(--ai-accent, #4f6ef7) 55%, var(--ai-border, #384152));
+  box-shadow: 0 10px 26px -8px color-mix(in srgb, var(--ai-accent, #4f6ef7) 20%, rgba(0, 0, 0, 0.4));
 }
 
 .cf-removal-model-title {
@@ -164,64 +142,145 @@
 }
 
 .cf-removal-model-title strong {
-  color: #f1f5f9;
+  color: var(--ai-text, #f3f5f9);
   font-size: 14px;
-}
-
-.cf-removal-model-title span {
-  color: #94a3b8;
-  font-size: 11px;
 }
 
 .cf-removal-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  color: #94a3b8;
+  gap: 8px;
+  color: var(--ai-muted, #949eb0);
   font-size: 11px;
-  margin: 10px 0 14px;
 }
 
 .cf-removal-filename {
   overflow-wrap: anywhere;
-  color: #94a3b8;
-  margin-bottom: 12px;
-  font-family: monospace;
+  color: var(--ai-text-secondary, #d5dbe6);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
-  background: rgba(15, 23, 42, 0.6);
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid #1e293b;
+  background: var(--ai-code-bg, rgba(10, 13, 19, 0.9));
+  border: 1px solid var(--ai-border-light, rgba(71, 82, 102, 0.42));
 }
 
+/* 忙碌进度条状态卡 */
 .cf-removal-status {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-top: 16px;
-  min-width: 0;
-  padding: 12px 16px;
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid #334155;
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--ai-accent, #4f6ef7) 14%, var(--ai-surface, #1a1f2b));
+  border: 1px solid var(--ai-accent-border, rgba(79, 110, 247, 0.35));
 }
 
-.cf-removal-status span {
-  flex: 1;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  color: #93c5fd;
-  font-weight: 500;
+/* ==========================================================================
+   浅色模式 (Light Mode) 精细化适配
+   ========================================================================== */
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-settings,
+[data-theme='light'] .cf-removal-settings {
+  color: var(--ai-text-secondary, #2d3648);
 }
 
-.cf-removal-settings .cf-removal-ready {
-  color: #6ee7b7;
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-banner,
+[data-theme='light'] .cf-removal-banner {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ai-accent, #3b5bdb) 11%, #ffffff) 0%,
+    color-mix(in srgb, var(--ai-accent, #3b5bdb) 3.5%, #ffffff) 52%,
+    color-mix(in srgb, var(--ai-accent-soft, #2563eb) 9%, #ffffff) 100%
+  );
+  border-color: color-mix(in srgb, var(--ai-accent, #3b5bdb) 24%, var(--ai-border, #dde3ee));
+  box-shadow:
+    0 8px 24px -6px color-mix(in srgb, var(--ai-accent, #3b5bdb) 12%, rgba(15, 23, 42, 0.06)),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.92);
 }
 
-.cf-removal-error {
-  color: #fda4af;
-  overflow-wrap: anywhere;
-  margin-top: 10px;
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-pill,
+[data-theme='light'] .cf-removal-pill {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: var(--ai-border, #dde3ee);
+  color: var(--ai-text-secondary, #2d3648);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] :is(.cf-removal-card, .cf-removal-runtime),
+[data-theme='light'] :is(.cf-removal-card, .cf-removal-runtime) {
+  background: var(--ai-surface, #ffffff);
+  border-color: var(--ai-border, #dde3ee);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-runtime details,
+[data-theme='light'] .cf-removal-runtime details {
+  background: var(--ai-surface-elevated, #f2f4f9);
+  border-color: var(--ai-border, #dde3ee);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-runtime details a,
+[data-theme='light'] .cf-removal-runtime details a {
+  background: var(--ai-surface, #ffffff);
+  border-color: var(--ai-border, #dde3ee);
+  color: var(--ai-accent-strong, #2f4ac0);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-runtime details a:hover,
+[data-theme='light'] .cf-removal-runtime details a:hover {
+  background: var(--ai-accent-bg, #eef2ff);
+  border-color: var(--ai-accent-border, #c7d2fe);
+  color: var(--ai-accent, #3b5bdb);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-model,
+[data-theme='light'] .cf-removal-model {
+  background: var(--ai-surface, #ffffff);
+  border-color: var(--ai-border, #dde3ee);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-model:hover,
+[data-theme='light'] .cf-removal-model:hover {
+  border-color: color-mix(in srgb, var(--ai-accent, #3b5bdb) 40%, var(--ai-border, #dde3ee));
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-model.is-active,
+[data-theme='light'] .cf-removal-model.is-active {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ai-accent, #3b5bdb) 9%, #ffffff) 0%,
+    #ffffff 100%
+  );
+  border-color: color-mix(in srgb, var(--ai-accent, #3b5bdb) 48%, var(--ai-border, #dde3ee));
+  box-shadow:
+    0 10px 24px -8px color-mix(in srgb, var(--ai-accent, #3b5bdb) 16%, rgba(15, 23, 42, 0.08)),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-filename,
+[data-theme='light'] .cf-removal-filename {
+  background: var(--ai-surface-elevated, #f2f4f9);
+  border-color: var(--ai-border, #dde3ee);
+  color: var(--ai-text-secondary, #2d3648);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-secondary-btn,
+[data-theme='light'] .cf-removal-secondary-btn {
+  background: var(--ai-surface-elevated, #f2f4f9);
+  border-color: var(--ai-border, #dde3ee);
+  color: var(--ai-text-secondary, #2d3648);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-secondary-btn:hover:not(:disabled),
+[data-theme='light'] .cf-removal-secondary-btn:hover:not(:disabled) {
+  background: var(--ai-surface-hover, #e8ecf4);
+  border-color: var(--ai-accent-border, #c7d2fe);
+  color: var(--ai-accent-strong, #2f4ac0);
+}
+
+:where(.cf-ai-panel, .sang-ai-settings, .sang-ai-portal)[data-theme='light'] .cf-removal-status,
+[data-theme='light'] .cf-removal-status {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ai-accent, #3b5bdb) 10%, #ffffff) 0%,
+    color-mix(in srgb, var(--ai-accent, #3b5bdb) 4%, #ffffff) 100%
+  );
+  border-color: color-mix(in srgb, var(--ai-accent, #3b5bdb) 28%, var(--ai-border, #dde3ee));
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--ai-accent, #3b5bdb) 14%, rgba(15, 23, 42, 0.06));
 }
 
 @media (max-width: 640px) {

@@ -4,11 +4,9 @@ import {
   CheckCircle2, 
   Download, 
   ExternalLink, 
-  Info, 
   LoaderCircle, 
   Scissors, 
   ShieldCheck, 
-  Sparkles, 
   Trash2, 
   Upload, 
   X, 
@@ -81,14 +79,14 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
   return (
     <section className="cf-removal-settings space-y-6 text-slate-200" aria-label={text('抠图设置', 'Background removal settings')}>
       {/* 顶部标题与说明卡片 */}
-      <div className="p-5 rounded-2xl border border-blue-500/25 bg-gradient-to-r from-blue-950/30 via-slate-900/60 to-indigo-950/20 shadow-lg shadow-blue-950/10 space-y-3">
+      <div className="cf-removal-banner p-5 rounded-2xl border border-blue-500/25 bg-gradient-to-r from-blue-950/30 via-slate-900/60 to-indigo-950/20 shadow-lg shadow-blue-950/10 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="cf-removal-heading flex items-center gap-3 !mb-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center shadow-inner">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center shadow-inner shrink-0">
               <Scissors size={18} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+              <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-2 flex-wrap">
                 <span>{text('本地离线智能抠图', 'Local AI Background Removal')}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 font-mono border border-blue-500/30">
                   ONNX Web
@@ -104,11 +102,11 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
           </div>
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <span className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
+            <span className="cf-removal-pill text-[11px] px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
               <ShieldCheck size={13} className="text-emerald-400" />
               <span>{text('本地隐私安全', 'Local Privacy')}</span>
             </span>
-            <span className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
+            <span className="cf-removal-pill text-[11px] px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 flex items-center gap-1.5 shadow-sm">
               <Zap size={13} className="text-amber-400" />
               <span>{text('WebGPU / WASM 加速', 'Hardware Accelerated')}</span>
             </span>
@@ -117,7 +115,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
       </div>
 
       {/* 推理与计算设备参数卡片 */}
-      <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-4 shadow-sm">
+      <div className="cf-removal-card p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-4 shadow-sm">
         <div className="flex items-center gap-2 pb-2 border-b border-slate-800/80">
           <Cpu size={16} className="text-blue-400" />
           <h4 className="text-xs font-bold text-white uppercase tracking-wider">
@@ -180,7 +178,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
       </div>
 
       {/* 运行时核心引擎卡片 */}
-      <div className="cf-removal-runtime !m-0 p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-4 shadow-sm">
+      <div className="cf-removal-runtime cf-removal-card !m-0 p-5 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-4 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -222,7 +220,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
               disabled={busy}
               onClick={() => runtimeInput.current?.click()}
               title={text('导入同版本运行时文件（.mjs / .wasm）', 'Import trusted runtime files of the same version')}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 flex items-center gap-1.5 transition-all cursor-pointer"
+              className="cf-removal-secondary-btn px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Upload size={14} />
               <span>{text('导入运行时', 'Import runtime')}</span>
@@ -291,7 +289,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                 key={model.id}
                 className={`cf-removal-model !m-0 p-5 rounded-2xl border transition-all relative flex flex-col justify-between ${
                   isActive
-                    ? 'bg-gradient-to-b from-blue-950/25 to-slate-900/70 border-blue-500/50 shadow-lg shadow-blue-950/20'
+                    ? 'is-active bg-gradient-to-b from-blue-950/25 to-slate-900/70 border-blue-500/50 shadow-lg shadow-blue-950/20'
                     : 'bg-slate-900/40 border-slate-800/80 hover:border-slate-700/80'
                 }`}
               >
@@ -359,7 +357,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                           const blob = await downloadModel(model.id, signal, report);
                           await acceptModel(model.id, blob, `${model.id}.onnx`, signal, report);
                         })}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5">
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer">
                         <Download size={13} /> {text('下载模型', 'Download model')}
                       </button>
                     )}
@@ -389,7 +387,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                           const provider = await verifyModel(model.id, resources.model, state.settings.device, { signal, onProgress: report });
                           report({ stage: provider });
                         })}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="cf-removal-secondary-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <CheckCircle2 size={13} />
                         <span>{text('验证推理', 'Verify')}</span>
@@ -417,7 +415,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
                       target="_blank"
                       rel="noreferrer"
                       title={text('查看源权重', 'Open source model page')}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/80 transition-colors"
+                      className="cf-removal-secondary-btn p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700/80 transition-colors"
                     >
                       <ExternalLink size={13} />
                     </a>
@@ -469,7 +467,7 @@ export default function BackgroundRemovalSettings({ english }: { english: boolea
               onClick={() => controller.current?.abort()}
               title={text('取消', 'Cancel')}
               aria-label={text('取消', 'Cancel')}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
+              className="cf-removal-secondary-btn p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
             >
               <X size={14} />
             </button>

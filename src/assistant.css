@@ -345,7 +345,7 @@
 }
 
 .sang-ai-settings[data-theme='light'] [role='dialog'] header h2,
-.sang-ai-settings[data-theme='light'] [role='dialog'] :is(h3, h4, p).text-white {
+.sang-ai-settings[data-theme='light'] [role='dialog'] :is(h3, h4, p, strong).text-white {
   color: var(--ai-text);
 }
 
@@ -368,9 +368,11 @@
   color: var(--ai-text);
 }
 
-/* 浅色模式：技能规则 (Skills)、快捷短语 (Snippets) 与其他设置 (Other Settings) 顶部横幅卡片背景优化 */
+/* 浅色模式：技能规则 (Skills)、智能抠图 (Removal)、快捷短语 (Snippets) 与其他设置 (Other Settings) 顶部横幅卡片背景优化 */
 .sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-skills > fieldset > div:first-of-type,
-.sang-ai-settings[data-theme='light'] .from-indigo-950\/30.via-slate-900\/60.to-blue-950\/20 {
+.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-removal .cf-removal-banner,
+.sang-ai-settings[data-theme='light'] .from-indigo-950\/30.via-slate-900\/60.to-blue-950\/20,
+.sang-ai-settings[data-theme='light'] .from-blue-950\/30.via-slate-900\/60.to-indigo-950\/20 {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--ai-accent) 11%, #ffffff) 0%,
@@ -381,6 +383,19 @@
   box-shadow:
     0 8px 24px -6px color-mix(in srgb, var(--ai-accent) 12%, rgba(15, 23, 42, 0.06)),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-removal .cf-removal-model.is-active,
+.sang-ai-settings[data-theme='light'] .from-blue-950\/25.to-slate-900\/70 {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ai-accent) 9.5%, #ffffff) 0%,
+    #ffffff 100%
+  );
+  border-color: color-mix(in srgb, var(--ai-accent) 46%, var(--ai-border));
+  box-shadow:
+    0 10px 24px -8px color-mix(in srgb, var(--ai-accent) 15%, rgba(15, 23, 42, 0.08)),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
 }
 
 .sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-skills > fieldset > div:first-of-type > .blur-3xl {
@@ -472,8 +487,9 @@
 
 .sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-skills > fieldset > div:first-of-type button.bg-slate-850,
 .sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-snippets > div > div:first-of-type button.bg-slate-800,
-.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-other [role='status'] button.bg-slate-800 {
-  background-color: rgba(255, 255, 255, 0.9);
+.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-other [role='status'] button.bg-slate-800,
+.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-removal .cf-removal-secondary-btn {
+  background-color: rgba(255, 255, 255, 0.92);
   border-color: var(--ai-border);
   color: var(--ai-text-secondary);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -481,7 +497,8 @@
 
 .sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-skills > fieldset > div:first-of-type button.bg-slate-850:hover,
 .sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-snippets > div > div:first-of-type button.bg-slate-800:hover,
-.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-other [role='status'] button.bg-slate-800:hover {
+.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-other [role='status'] button.bg-slate-800:hover,
+.sang-ai-settings[data-theme='light'] #ai-settings-tabpanel-removal .cf-removal-secondary-btn:hover:not(:disabled) {
   background-color: #ffffff;
   border-color: var(--ai-accent-border);
   color: var(--ai-accent-strong);
