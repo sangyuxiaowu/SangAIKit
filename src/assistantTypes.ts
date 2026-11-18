@@ -75,7 +75,7 @@ export interface AssistantController {
   configError: string;
   executionError: { message: string } | null;
   confirmation: { message: string; resolve: (accepted: boolean) => void } | null;
-  canRegenerate: boolean;
+  canRegenerate?: boolean;
   send: (prompt: string, attachments?: ImageUpload[]) => Promise<void>;
   stop: (source?: 'user_stop' | 'panel_closed') => void;
   newSession: () => Promise<void>;

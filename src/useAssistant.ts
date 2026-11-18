@@ -47,7 +47,7 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
   const pendingSave = useRef(Promise.resolve());
   const mounted = useRef(false);
   const generation = useRef(0);
-  const redo = useRef<{ sessionId: string; entryId: string; previousEntries: ChatEntry[]; previousHistory: unknown[] } | null>(null);
+  const redo = useRef<{ sessionId: string; entryId: string; previousHistory: unknown[] } | null>(null);
   const runnerRef = useRef(runner);
   runnerRef.current = runner;
 
@@ -114,7 +114,7 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
     };
   }, [storage]);
 
-  const run = async (prompt: string, previous: ChatEntry[], attachments: ImageUpload[] = [], historyOverride?: unknown[]) => {
+  const run = async (prompt: string, previous: ChatEntry[], attachments: ImageUpload[] = [], historyOverride?: unknown[], reuseAttachments = false, previousResponse?: ChatEntry) => {
     if (request.current || savingRef.current || loading || loadError) return;
     if (attachments.length && !storage.images) throw new Error('Image storage is unavailable.');
     const id = current.current.activeSessionId;
@@ -133,14 +133,18 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
     const previousSnapshot = current.current;
     const savedUploads: { sessionId: string; imageId: string }[] = [];
     try {
-      for (const attachment of attachments) {
+      for (const attachment of reuseAttachments ? [] : attachments) {
         abort.signal.throwIfAborted();
         await storage.images!.saveImage(id, attachment.image.id, attachment.blob);
         savedUploads.push({ sessionId: id, imageId: attachment.image.id });
       }
       abort.signal.throwIfAborted();
       if (!active()) throw new Error('The active storage has changed.');
-      const next = { ...current.current, sessions: current.current.sessions.map(session => session.id === id ? { ...session, title: previous.length ? session.title : prompt.slice(0, 30), updatedAt: Date.now(), entries: [...previous, user, response], responseItems: historyBefore } : session) };
+      const galleryEntry = previousResponse && (previousResponse.images?.length || previousResponse.tools?.some(tool => tool.image))
+        ? { content: '', images: previousResponse.images, tools: previousResponse.tools?.filter(tool => tool.image) }
+        : undefined;
+      const next = { ...current.current, sessions: current.current.sessions.map(session => session.id === id ? { ...session, title: previous.length ? session.title : prompt.slice(0, 30), updatedAt: Date.now(), entries: [...previous, user, response], responseItems: historyBefore,
+        ...(galleryEntry ? { galleryEntries: [...(session.galleryEntries || []), galleryEntry] } : {}) } : session) };
       if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
       current.current = next;
       setSnapshot(next);
@@ -148,7 +152,7 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
       published = true;
       abort.signal.throwIfAborted();
       if (!active()) throw new Error('The active storage has changed.');
-      redo.current = { sessionId: id, entryId: response.id, previousEntries: previous, previousHistory: historyBefore };
+      redo.current = { sessionId: id, entryId: response.id, previousHistory: historyBefore };
       await runnerRef.current([...previous, user], {
         signal: abort.signal,
         history: historyBefore,
@@ -215,19 +219,40 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
   const session = snapshot.sessions.find(item => item.id === snapshot.activeSessionId) || snapshot.sessions[0];
   const previousUserIndex = session.entries.map(entry => entry.role).lastIndexOf('user');
   const hasToolEffects = previousUserIndex >= 0 && session.entries.slice(previousUserIndex + 1).some(entry => entry.tools?.length);
-  const canRedo = Boolean(redo.current && redo.current.sessionId === session.id && session.entries.at(-1)?.id === redo.current.entryId);
+  const canRedo = previousUserIndex >= 0 && session.entries.at(-1)?.role === 'assistant';
   const regenerate = async () => {
     const checkpoint = redo.current;
     const active = current.current.sessions.find(item => item.id === current.current.activeSessionId);
-    if (!active || !checkpoint || checkpoint.sessionId !== active.id || active.entries.at(-1)?.id !== checkpoint.entryId) return;
+    if (!active || request.current || savingRef.current || loading || loadError || active.entries.at(-1)?.role !== 'assistant') return;
     const index = active.entries.map(entry => entry.role).lastIndexOf('user');
-    if (index >= 0 && !active.entries[index].images?.length && !active.entries.slice(index + 1).some(entry => entry.tools?.length)) await run(active.entries[index].content, checkpoint.previousEntries, [], checkpoint.previousHistory);
+    if (index < 0) return;
+    const user = active.entries[index];
+    const previous = active.entries.slice(0, index);
+    const history = active.responseItems ?? [];
+    const previousAssistant = [...previous].reverse().find(entry => entry.role === 'assistant');
+    const marker = previousAssistant?.responseItemCount;
+    const historyBefore = checkpoint?.sessionId === active.id && checkpoint.entryId === active.entries.at(-1)?.id
+      ? checkpoint.previousHistory
+      : history.slice(0, marker !== undefined && marker >= 0 && marker <= history.length ? marker : 0);
+    const snapshotBeforeLoad = current.current;
+    const targetGeneration = generation.current;
+    try {
+      const attachments = await Promise.all((user.images ?? []).map(async image => {
+        const blob = await storage.images?.loadImage(active.id, image.id);
+        if (!blob) throw new Error(`Image attachment not found: ${image.name}`);
+        return { image, blob };
+      }));
+      if (!mounted.current || generation.current !== targetGeneration || current.current !== snapshotBeforeLoad || request.current || savingRef.current) return;
+      await run(user.content, previous, attachments, historyBefore, true, active.entries.at(-1));
+    } catch (error) {
+      if (mounted.current && generation.current === targetGeneration && current.current === snapshotBeforeLoad) setExecutionError({ message: error instanceof Error ? error.message : String(error) });
+    }
   };
 
   return {
     entries: session.entries, sessions: snapshot.sessions, activeSessionId: snapshot.activeSessionId,
     busy, loading, saving, loadError, keyError: false, configError, executionError, confirmation: null,
-    canRegenerate: !busy && canRedo && previousUserIndex >= 0 && !hasToolEffects && !session.entries[previousUserIndex]?.images?.length,
+    canRegenerate: !busy && !loading && !saving && !loadError && canRedo,
     send: async (prompt, attachments = []) => {
       const active = current.current.sessions.find(item => item.id === current.current.activeSessionId);
       if (active) await run(prompt, active.entries, attachments);
@@ -266,7 +291,10 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
         return { ...item, entries: item.entries.map(entry => ({ ...entry,
           images: entry.images?.filter(image => !keys.has(`${item.id}:${image.id}`)),
           tools: entry.tools?.map(tool => tool.image && keys.has(`${item.id}:${tool.image.id}`) ? { ...tool, image: undefined } : tool)
-        })), responseItems: item.responseItems?.map(value => {
+        })), galleryEntries: item.galleryEntries?.map(entry => ({ ...entry,
+          images: entry.images?.filter(image => !keys.has(`${item.id}:${image.id}`)),
+          tools: entry.tools?.filter(tool => !tool.image || !keys.has(`${item.id}:${tool.image.id}`))
+        })).filter(entry => entry.images?.length || entry.tools?.some(tool => tool.image)), responseItems: item.responseItems?.map(value => {
           if (!value || typeof value !== 'object') return value;
           const record = value as Record<string, unknown>;
           return { ...record, ...(Array.isArray(record.content) ? { content: cleanParts(record.content) } : {}),

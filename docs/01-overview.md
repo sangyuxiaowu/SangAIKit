@@ -37,6 +37,6 @@
 
 ## 安全与副作用设计原则
 
-1. **工具副作用保护**：`useAssistant` 通过 `AssistantRunner` 接收文本、思考、工具状态与 Responses 原生历史。由于工具调用或图片生成可能产生外部副作用或计费，通用控制器在当前轮次包含工具调用或图片附件时会自动禁用「重新生成（Redo）」，仅允许纯文本回复的安全重做。
+1. **工具副作用**：`useAssistant` 通过 `AssistantRunner` 接收文本、思考、工具状态与 Responses 原生历史。主动重新生成可能再次执行工具或产生费用，不会撤销外部操作；需要回滚或限制的宿主应自行实现并通过 `canRegenerate` 控制入口。
 2. **按需水合视觉附件**：演示与推荐存储使用 `attachment://<imageId>` 引用保存图片历史，仅在向支持视觉（`supportsVision: true`）的模型发送请求时才从 `ImageStore` 读取并转为 Data URL，避免撑爆本地存储与纯文本模型上下文。
 3. **本机加密与生产代理建议**：`createBrowserAiStore` 使用 AES-256-GCM 加密 API Key 并存储于 IndexedDB，主密钥设置为 `extractable: false`。但浏览器端解密后发起直连请求时仍可能受页面脚本或跨域限制影响，公开生产环境推荐通过后端代理转发模型请求。

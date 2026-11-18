@@ -8,7 +8,7 @@ import { AiAssistant, AiSettings, DEFAULT_SETTINGS, createBrowserAiStore, create
 
 afterEach(() => vi.unstubAllGlobals());
 
-it('persists sessions, streams tool activity, and avoids unsafe tool redo', async () => {
+it('persists sessions, streams tool activity, and regenerates a tool reply on request', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const saved: { current: AssistantSnapshot | null } = { current: null };
   const storage: AssistantStorage = { load: async () => saved.current, save: async snapshot => { saved.current = snapshot; } };
@@ -30,7 +30,10 @@ it('persists sessions, streams tool activity, and avoids unsafe tool redo', asyn
     expect(assistant!.entries[1].activity?.find(item => item.type === 'reasoning')).toMatchObject({ text: 'reason' });
     expect(assistant!.entries[1].tools?.[0].status).toBe('success');
     expect(assistant!.entries[1].activity?.map(item => item.type)).toEqual(['tool', 'reasoning', 'text']);
-    expect(assistant!.canRegenerate).toBe(false);
+    expect(assistant!.canRegenerate).toBe(true);
+    await act(async () => { await assistant!.regenerate(); });
+    expect(assistant!.entries.map(entry => entry.content)).toEqual(['question', 'answer']);
+    expect(assistant!.entries[1].tools?.[0].status).toBe('success');
     await expect(assistant!.send('image', [{ image: { id: 'img', name: 'image.png', type: 'image/png', size: 1 }, blob: new Blob() }])).rejects.toThrow('Image storage is unavailable');
     const first = assistant!.activeSessionId;
     await act(async () => { await assistant!.newSession(); });
@@ -150,7 +153,7 @@ it('stores attachments and generated images with their session', async () => {
     expect(assistant!.entries[0].images?.[0].id).toBe('upload');
     expect(assistant!.entries[1].images?.[0].name).toBe('generated.png');
     expect(assistant!.entries[1].tools?.[0].image?.id).toBe(assistant!.entries[1].images?.[0].id);
-    expect(assistant!.canRegenerate).toBe(false);
+    expect(assistant!.canRegenerate).toBe(true);
     const sessionId = assistant!.activeSessionId!;
     const generatedId = assistant!.entries[1].images![0].id;
     expect((await images.loadImage(sessionId, 'upload'))?.size).toBe(5);
@@ -159,6 +162,18 @@ it('stores attachments and generated images with their session', async () => {
     expect(assistant!.entries[1].tools?.[0].image).toBeUndefined();
     expect(JSON.stringify(assistant!.sessions[0].responseItems)).toContain('[Chat image deleted by user]');
     expect(JSON.stringify(assistant!.sessions[0].responseItems)).not.toContain(`attachment://${generatedId}`);
+    await act(async () => { await assistant!.regenerate(); });
+    expect(assistant!.entries[0].images?.[0].id).toBe('upload');
+    expect((await images.loadImage(sessionId, 'upload'))?.size).toBe(5);
+    expect(assistant!.entries[1].images?.[0].name).toBe('generated.png');
+    const archivedId = assistant!.entries[1].images![0].id;
+    await act(async () => { await assistant!.regenerate(); });
+    expect(assistant!.sessions[0].galleryEntries?.[0].images?.[0].id).toBe(archivedId);
+    expect(assistant!.sessions[0].galleryEntries?.[0].tools?.[0].image?.id).toBe(archivedId);
+    expect((await images.loadImage(sessionId, archivedId))?.size).toBe(5);
+    await act(async () => { expect(await assistant!.deleteImages!([{ sessionId, imageId: archivedId }])).toBe(true); });
+    expect(await images.loadImage(sessionId, archivedId)).toBeNull();
+    expect(assistant!.sessions[0].galleryEntries).toEqual([]);
     await act(async () => { await assistant!.deleteSession(sessionId); });
     expect(await images.loadImage(sessionId, 'upload')).toBeNull();
   } finally { await act(async () => root.unmount()); }
@@ -310,4 +325,63 @@ it('allows a host without frontend credentials and displays host send errors', a
     await act(async () => root.unmount());
     host.remove();
   }
+});
+
+it('preserves the reply when an attachment needed for regeneration is missing', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const images = createIndexedDbImageStore(`missing-redo-images-${crypto.randomUUID()}`);
+  const storage: AssistantStorage = { load: async () => null, save: async () => {}, images };
+  const runner = vi.fn(async (_entries, events) => events.onText('answer')) as AssistantRunner;
+  const root = createRoot(document.createElement('div'));
+  let assistant: ReturnType<typeof useAssistant>;
+  function Harness() { assistant = useAssistant(runner, storage); return null; }
+  try {
+    await act(async () => { root.render(<Harness />); });
+    const blob = new NodeBlob(['image'], { type: 'image/png' }) as unknown as Blob;
+    await act(async () => { await assistant!.send('image', [{ image: { id: 'upload', name: 'upload.png', type: 'image/png', size: 5 }, blob }]); });
+    await images.deleteImages([{ sessionId: assistant!.activeSessionId!, imageId: 'upload' }]);
+    await act(async () => { await assistant!.regenerate(); });
+    expect(assistant!.entries.map(entry => entry.content)).toEqual(['image', 'answer']);
+    expect(assistant!.executionError?.message).toContain('Image attachment not found');
+    expect(runner).toHaveBeenCalledOnce();
+  } finally { await act(async () => root.unmount()); }
+});
+
+it('shows regeneration by default only on the last assistant reply and honors a host override', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('requestAnimationFrame', () => 1);
+  vi.stubGlobal('cancelAnimationFrame', () => {});
+  const regenerate = vi.fn(async () => {});
+  const controller: AssistantController = {
+    entries: [{ id: 'old', role: 'assistant', content: 'Old' }, { id: 'new', role: 'assistant', content: 'New' }],
+    sessions: [], activeSessionId: null, busy: false, loading: false, saving: false,
+    loadError: '', keyError: false, configError: '', executionError: null, confirmation: null,
+    send: async () => {}, stop: () => {}, newSession: async () => {}, selectSession: async () => {},
+    renameSession: async () => {}, deleteSession: async () => {}, reloadConfig: async () => {},
+    clearExecutionError: () => {}, retry: async () => {}, regenerate
+  };
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  const render = () => root.render(<AiAssistant assistant={controller}
+    floating={{ minimized: false, setMinimized: () => {}, resizeByKeyboard: () => {} }}
+    open language="en" title="Assistant" emptyTitle="Ready" emptyDescription="Ask"
+    active={{ model: { supportsVision: false } }} quickSnippets={[]}
+    loadImage={async () => null} createImageUpload={async () => { throw new Error('not used'); }}
+    imageModelForTool={() => undefined} sumUsage={() => undefined}
+    renderMarkdown={content => content} renderUsage={() => null} renderModelControls={() => null} renderSettings={() => null} />);
+  try {
+    await act(async () => render());
+    const buttons = host.querySelectorAll<HTMLButtonElement>('[aria-label="Regenerate (Redo)"]');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].closest('article')?.textContent).toContain('New');
+    await act(async () => { buttons[0].click(); });
+    expect(regenerate).toHaveBeenCalledOnce();
+    controller.canRegenerate = false;
+    await act(async () => render());
+    expect(host.querySelector('[aria-label="Regenerate (Redo)"]')).toBeNull();
+    controller.canRegenerate = true;
+    await act(async () => render());
+    expect(host.querySelectorAll('[aria-label="Regenerate (Redo)"]')).toHaveLength(1);
+  } finally { await act(async () => root.unmount()); }
 });

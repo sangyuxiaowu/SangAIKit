@@ -226,6 +226,27 @@ it('selects and inverts only the current category and confirms before deleting',
   }
 });
 
+it('keeps replaced reply images in their gallery category', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  const onInsertImage = vi.fn(async () => {});
+  const session: ChatSession = {
+    id: 'session', title: 'Chat', updatedAt: 1, entries: [{ content: 'New reply' }],
+    galleryEntries: [{ content: '', tools: [{ name: 'generate_image', arguments: '{"prompt":"City"}',
+      image: { id: 'image', name: 'poster.png', type: 'image/png', size: 12 } }] }]
+  };
+  try {
+    await act(async () => root.render(<SessionList sessions={[session]} activeId="session" disabled={false} english={false}
+      onNew={async () => {}} onSelect={async () => {}} onRename={async () => {}} onDelete={async () => {}} onInsertImage={onInsertImage} />));
+    await act(async () => { host.querySelector<HTMLElement>('[title="点击打开图片画廊并预览保存"]')!.click(); });
+    await act(async () => { host.querySelector<HTMLButtonElement>('[title="AI 生图工具生成的插图"]')!.click(); });
+    expect(host.textContent).toContain('poster.png');
+    await act(async () => { host.querySelector<HTMLButtonElement>('[aria-label="插入图片: poster.png"]')!.click(); });
+    expect(onInsertImage).toHaveBeenCalledWith(expect.objectContaining({ imageId: 'image', category: 'generated', prompt: 'City' }));
+  } finally { await act(async () => root.unmount()); }
+});
+
 it('offers insertion for generated and attachment images but not previews', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const host = document.createElement('div');

@@ -589,15 +589,15 @@ export default function AiAssistant({
                               </button>}
 
                               {/* 左2：图标重新生成 (仅图标，无文字，样式与复制按钮完全一致) */}
-                              {isLastAssistant && assistant.canRegenerate && (
+                              {isLastAssistant && assistant.canRegenerate !== false && (
                                 <button
                                   type="button"
                                   disabled={controlsDisabled}
                                   onClick={() => void assistant.regenerate()}
                                   className="cf-ai-action-btn flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed"
                                   title={label(
-                                    '从上次用户输入开始重新生成，撤销之前的AI操作 (重做)',
-                                    'Regenerate from last user input, revert previous AI operations (Redo)'
+                                    '从上次用户输入开始重新生成',
+                                    'Regenerate from the last user input'
                                   )}
                                   aria-label={label('重新生成 (重做)', 'Regenerate (Redo)')}
                                 >

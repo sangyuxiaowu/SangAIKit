@@ -22,4 +22,5 @@ export interface ChatSession {
   title: string;
   updatedAt: number;
   entries: SessionEntry[];
+  galleryEntries?: SessionEntry[];
 }

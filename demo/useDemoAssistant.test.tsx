@@ -128,7 +128,7 @@ it('orders reasoning and tool activity by response items across a turn', async (
   } finally { await act(async () => root.unmount()); }
 });
 
-it('preserves response history across turns and only allows immediate redo', async () => {
+it('preserves response history across turns and allows redo after reopening', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const requests: Record<string, unknown>[] = [];
   vi.stubGlobal('fetch', vi.fn(async (_target: unknown, init: RequestInit) => {
@@ -168,7 +168,11 @@ it('preserves response history across turns and only allows immediate redo', asy
     try {
       await act(async () => { reopened.render(<Harness />); });
       expect(assistant!.entries).toHaveLength(4);
-      expect(assistant!.canRegenerate).toBe(false);
+      expect(assistant!.canRegenerate).toBe(true);
+      await act(async () => { await assistant!.regenerate(); });
+      const restored = requests[3].input as Array<{ role?: string; content?: unknown }>;
+      expect(restored.map(item => item.role)).toEqual(['user', 'assistant', 'user']);
+      expect(restored[2].content).toBe('Second');
     } finally { await act(async () => reopened.unmount()); }
   } finally { await act(async () => root.unmount()); }
 });
@@ -234,4 +238,26 @@ it('lets the host fork a conversation from a selected assistant response', async
   expect(branch.entries.map(entry => entry.id)).toEqual(['user-1', 'assistant-1']);
   expect(branch.responseItems).toEqual(session.responseItems.slice(0, 2));
   expect(branch.requests.map(request => request.id)).toEqual(['request-1']);
+});
+
+it('allows regeneration of the default local demo reply with its simulated tool', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.useFakeTimers();
+  const endpoint = createEndpoint('custom');
+  endpoint.id = 'local-demo';
+  const config: AiConfig = { endpoints: [endpoint], activeSelection: { endpointId: endpoint.id, modelId: endpoint.models[0].id }, systemPrompt: '' };
+  const root = createRoot(document.createElement('div'));
+  let assistant: ReturnType<typeof useDemoAssistant>;
+  function Harness() { assistant = useDemoAssistant(config); return null; }
+  try {
+    await act(async () => { root.render(<Harness />); });
+    await act(async () => { const task = assistant!.send('Test'); await vi.runAllTimersAsync(); await task; });
+    expect(assistant!.entries[1].tools?.[0].name).toBe('demo_context');
+    expect(assistant!.canRegenerate).toBe(true);
+    const firstReply = assistant!.entries[1].id;
+    await act(async () => { const task = assistant!.regenerate(); await vi.runAllTimersAsync(); await task; });
+    expect(assistant!.entries[1].id).not.toBe(firstReply);
+    expect(assistant!.entries[1].content).toContain('Test');
+    expect(assistant!.entries[1].tools?.[0].name).toBe('demo_context');
+  } finally { await act(async () => root.unmount()); vi.useRealTimers(); }
 });

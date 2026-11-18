@@ -164,7 +164,7 @@ export default function SessionList({
     const itemsMap = new Map<string, GalleryItem>();
 
     sessions.forEach(session => {
-      session.entries.forEach(entry => {
+      [...session.entries, ...(session.galleryEntries || [])].forEach(entry => {
         // 1. entry.images
         entry.images?.forEach(img => {
           const key = `${session.id}:${img.id}`;

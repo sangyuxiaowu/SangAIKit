@@ -28,7 +28,7 @@ bun run dev
 | Kolors、Agnes、GPT Image 生图协议、图片存储和密钥管理 | 将图片或工具结果应用到宿主工作区 |
 | 可选 `useAssistant` 通用会话控制器和浏览器加密存储 | 宿主业务操作的撤销/重做及原生文件存储 |
 
-`useAssistant` 通过 `AssistantRunner` 接收文本、思考、工具状态和原生历史；工具可能有副作用，因此通用控制器在本轮出现工具或图片附件时禁用重新生成。需要事务回滚的应用应自行提供可验证的重做实现。用户附件和工具结果均可使用 `attachment://` 资源引用保存图片历史，发送视觉请求时才加载，文本模型不读取图片；若接入方直接传入 data URL，则历史会包含该数据。
+`useAssistant` 通过 `AssistantRunner` 接收文本、思考、工具状态和原生历史；通用控制器支持主动重新生成最近一轮，并复用该轮图片附件。重新生成可能再次执行工具或产生费用，不会撤销外部操作；需要事务回滚的应用应自行提供可验证的重做实现。用户附件和工具结果均可使用 `attachment://` 资源引用保存图片历史，发送视觉请求时才加载，文本模型不读取图片；若接入方直接传入 data URL，则历史会包含该数据。
 
 工作区读写、业务工具和原生文件权限由接入方明确实现。组件的宿主接口目前仍处于开发阶段，尚未承诺稳定的发布 API。
 
@@ -50,7 +50,7 @@ bun run dev
 
 `createResponsesSender` 可选接收 `onRequest({ endpoint, body })` 观察器，在每次请求发送前报告最终 Responses URL 与 JSON body；快照不包含 HTTP headers 或 API Key。它适合诊断最终 instructions、工具 Schema 和上下文输入。生产宿主接入时应自行决定是否记录、展示或脱敏其中的用户消息与附件数据；demo 检查器会脱敏图像 Base64。
 
-对话数据的所有权由调用方决定。使用 `useAssistant(runner, storage)` 时必须传入存储适配器；`AssistantStorage` 是通用接口，不代表组件会自动选择或创建持久化位置。宿主可接入自己的 IndexedDB、文件或服务端存储。消息上的分叉入口只有在传入 `onFork` 时显示；点击后只回调 `{ sessionId, entryId, responseItemCount? }`，不在共享组件内创建会话或复制图片。宿主负责验证标记、截断对应消息与 Responses 历史、复制引用图片并保存新会话。重新生成入口只会出现在最后一条 AI 回复上；通用控制器仅允许无工具副作用的安全重做，具有画布等外部状态的宿主应自行提供可验证的恢复能力。
+对话数据的所有权由调用方决定。使用 `useAssistant(runner, storage)` 时必须传入存储适配器；`AssistantStorage` 是通用接口，不代表组件会自动选择或创建持久化位置。宿主可接入自己的 IndexedDB、文件或服务端存储。消息上的分叉入口只有在传入 `onFork` 时显示；点击后只回调 `{ sessionId, entryId, responseItemCount? }`，不在共享组件内创建会话或复制图片。宿主负责验证标记、截断对应消息与 Responses 历史、复制引用图片并保存新会话。重新生成入口默认只出现在最后一条已完成的 AI 回复上，宿主可通过 `canRegenerate` 控制；具有画布等外部状态的宿主应自行提供可验证的恢复能力。
 
 图片画廊的插入操作由 `assistant.insertImage` 提供；未提供时不显示按钮。`AiAssistant` 的 `imageInsertAction` 可随宿主状态更新 `visible`、`enabled`、`label`、`successLabel` 和 `disabledReason`，`isVisible(item)` 可控制单张图片的按钮；默认不显示预览图的插入按钮。文案由宿主按当前语言提供，未配置时使用通用文案。宿主负责读取图片、决定插入位置及处理失败。默认将内置生图识别为生成图片，其余归为附件；宿主可通过 `classifyGalleryImage(image, tools)` 返回 `generated`、`preview` 或 `attachment`，返回 `undefined` 时使用默认分类。删除图片的回调由宿主负责实际清理，画廊不假设外部引用的存储方式。
 
