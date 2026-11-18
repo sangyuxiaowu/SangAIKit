@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { builtInToolDefinitions, createBuiltInTools, type ImageToolExtension } from './builtInTools';
 import { createEndpoint } from './modelConfig';
-import { createImageModel, imageModelToolId } from './image-generation/index';
+import { createImageModel, generateImages, imageCapabilities, imageModelToolId, validateImageModel } from './image-generation/index';
 import type { AiConfig } from './settingsTypes';
 
 function config(): AiConfig {
@@ -248,5 +248,80 @@ test('preserves already archived images when a later archive write fails', async
     await expect(tool.execute({ prompt: 'City', n: 2 }, new AbortController().signal)).rejects.toThrow('Saved image IDs: first');
     expect(images).toEqual(['first']);
     expect(applied).toBe(false);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('reference limits default correctly and validate model configurations', () => {
+  const value = config();
+  const model = value.imageModels![0];
+  expect(model.maxReferenceImages).toBe(5);
+  expect(createImageModel('agnes').maxReferenceImages).toBe(1);
+  expect(imageCapabilities({ ...model, maxReferenceImages: undefined }).maxReferenceImages).toBe(1);
+  for (const limit of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    expect(() => validateImageModel({ ...model, maxReferenceImages: limit }, value)).toThrow('Reference image limit');
+  }
+  expect(() => validateImageModel({ ...createImageModel('kolors'), maxReferenceImages: 2 }, value)).toThrow('at most one');
+});
+
+test('supports multiple stored and host references and enforces the model limit', async () => {
+  const originalFetch = globalThis.fetch;
+  const source = new Blob([Uint8Array.from(atob('iVBORw0KGgo='), character => character.charCodeAt(0))], { type: 'image/png' });
+  const value = config();
+  let requests = 0;
+  let body: FormData | undefined;
+  globalThis.fetch = Object.assign(async (_url: unknown, init?: RequestInit) => {
+    requests++;
+    body = init?.body as FormData;
+    return Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }] });
+  }, { preconnect: originalFetch.preconnect });
+  try {
+    const tool = createBuiltInTools({ ...options(value), loadImage: async id => id === 'missing' ? null : source }).tools.find(item => item.name === 'generate_image')!;
+    expect((tool.parameters.properties as Record<string, any>).referenceImageIds.maxItems).toBe(5);
+    await tool.execute({ prompt: 'City', referenceImageIds: ['one', 'two'] }, new AbortController().signal);
+    expect(body!.getAll('image[]')).toHaveLength(2);
+    expect(await (body!.getAll('image[]')[1] as File).arrayBuffer()).toEqual(await source.arrayBuffer());
+    await expect(tool.execute({ prompt: 'City', referenceImageIds: Array(6).fill('one') }, new AbortController().signal)).rejects.toThrow('at most 5');
+    await expect(tool.execute({ prompt: 'City', referenceImageId: 'one', referenceImageIds: ['two'] }, new AbortController().signal)).rejects.toThrow('either');
+    await expect(tool.execute({ prompt: 'City', referenceImageIds: ['missing'] }, new AbortController().signal)).rejects.toThrow('not found');
+    expect(requests).toBe(1);
+
+    const hostTool = createBuiltInTools({ config: value, imageExtensions: { generate_image: {
+      description: 'Host', properties: {}, prepare: async () => ({ inputImages: [source, source], complete: async () => ({ ok: true }) })
+    } } }).tools.find(item => item.name === 'generate_image')!;
+    await hostTool.execute({ prompt: 'City' }, new AbortController().signal);
+    expect(body!.getAll('image[]')).toHaveLength(2);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('zero reference limit allows text generation only, including direct API calls', async () => {
+  const originalFetch = globalThis.fetch;
+  const value = config();
+  value.imageModels![0].maxReferenceImages = 0;
+  let requests = 0;
+  globalThis.fetch = Object.assign(async () => { requests++; return Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }] }); }, { preconnect: originalFetch.preconnect });
+  try {
+    const tool = createBuiltInTools(options(value)).tools.find(item => item.name === 'generate_image')!;
+    expect(tool.parameters.properties).not.toHaveProperty('referenceImageIds');
+    expect(tool.parameters.properties).not.toHaveProperty('referenceImageId');
+    await expect(tool.execute({ prompt: 'City', referenceImageIds: ['one'] }, new AbortController().signal)).rejects.toThrow('at most 0');
+    await expect(generateImages(value, { modelConfigId: value.imageModels![0].id, prompt: 'City' }, new AbortController().signal, 'data:image/png;base64,aA==')).rejects.toThrow('at most 0');
+    await tool.execute({ prompt: 'City' }, new AbortController().signal);
+    expect(requests).toBe(1);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('Agnes sends multiple references in the image array', async () => {
+  const originalFetch = globalThis.fetch;
+  const value = config();
+  value.imageModels = [{ ...createImageModel('agnes'), enabled: true, endpointId: value.endpoints[0].id, maxReferenceImages: 2 }];
+  const images = ['data:image/png;base64,aA==', 'data:image/png;base64,aQ=='];
+  let body: Record<string, any> = {};
+  globalThis.fetch = Object.assign(async (_url: unknown, init?: RequestInit) => {
+    body = JSON.parse(init!.body as string);
+    return Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }] });
+  }, { preconnect: originalFetch.preconnect });
+  try {
+    await generateImages(value, { modelConfigId: value.imageModels[0].id, prompt: 'City' }, new AbortController().signal, images);
+    expect(body.extra_body.image).toEqual(images);
   } finally { globalThis.fetch = originalFetch; }
 });

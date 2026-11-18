@@ -14,10 +14,10 @@ export const agnes: ImageAdapter = {
     if (!AGNES_SIZES.includes(model.size) && !/^[1-9]\d{1,3}x[1-9]\d{1,3}$/.test(model.size)) throw new Error(`Invalid Agnes size "${model.size}". Use ${AGNES_SIZES.join(', ')}, or WIDTHxHEIGHT with each side between 10 and 9999, such as 1024x768; omit ratio for exact dimensions.`);
     if (!IMAGE_RATIOS.includes(model.ratio)) throw new Error('Invalid Agnes ratio.');
   },
-  buildRequest(model, prompt, reference) {
+  buildRequest(model, prompt, references = []) {
     return {
       operation: 'generations', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: model.modelId, prompt, size: model.size, ...(AGNES_SIZES.includes(model.size) ? { ratio: model.ratio } : {}), ...(reference ? { extra_body: { image: [reference], response_format: 'b64_json' } } : { return_base64: true }) })
+      body: JSON.stringify({ model: model.modelId, prompt, size: model.size, ...(AGNES_SIZES.includes(model.size) ? { ratio: model.ratio } : {}), ...(references.length ? { extra_body: { image: references, response_format: 'b64_json' } } : { return_base64: true }) })
     };
   },
   readResults: data => readImageResults(data, 'data')

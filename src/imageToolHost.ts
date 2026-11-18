@@ -17,6 +17,7 @@ export interface ImageToolResult {
 export interface ImageToolExtension extends ImageToolSchemaExtension {
   prepare: (args: Record<string, unknown>, signal: AbortSignal) => Promise<{
     inputImage?: Blob;
+    inputImages?: Blob[];
     complete: (result: ImageToolResult, signal: AbortSignal) => Promise<unknown>;
   }>;
 }

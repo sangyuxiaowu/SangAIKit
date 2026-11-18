@@ -37,6 +37,8 @@ export function validateImageModel(model: ImageModelConfig, config: Pick<AiConfi
     if (typeof date !== 'string' || (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date))) throw new Error('Image model release date must be a valid YYYY-MM-DD date, or empty when unknown.');
   }
   if (model.timeoutSeconds !== undefined && (!Number.isInteger(model.timeoutSeconds) || model.timeoutSeconds < 60 || model.timeoutSeconds > 600)) throw new Error('Image timeout must be between 60 and 600 seconds.');
+  if (model.maxReferenceImages !== undefined && (!Number.isSafeInteger(model.maxReferenceImages) || model.maxReferenceImages < 0)) throw new Error('Reference image limit must be a non-negative safe integer.');
+  if (model.adapter === 'kolors' && (model.maxReferenceImages ?? 1) > 1) throw new Error('Kolors supports at most one reference image.');
   const adapter = getImageAdapter(model.adapter);
   const capabilities = adapter.capabilities(model);
   if (!capabilities.qualities && model.quality !== undefined) throw new Error('quality is not supported by this image model.');
@@ -60,13 +62,15 @@ export function availableImageModels(config: AiConfig): ImageModelConfig[] {
   });
 }
 
-export async function generateImages(config: AiConfig, input: GenerateImageInput, signal: AbortSignal, reference?: string): Promise<Blob[]> {
+export async function generateImages(config: AiConfig, input: GenerateImageInput, signal: AbortSignal, reference?: string | string[]): Promise<Blob[]> {
   signal.throwIfAborted();
   const model = availableImageModels(config).find(item => item.id === input.modelConfigId);
   if (!model) throw new Error('Image model is disabled, unavailable or not found.');
   signal = AbortSignal.any([signal, AbortSignal.timeout(imageTimeoutSeconds(model) * 1000)]);
   if (typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 10000) throw new Error('Image prompt must contain 1 to 10000 characters.');
-  if (reference && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(reference)) throw new Error('Reference must be a local PNG, JPEG or WebP image.');
+  const references = typeof reference === 'string' ? [reference] : reference ?? [];
+  if (!Array.isArray(references) || references.some(image => typeof image !== 'string' || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(image))) throw new Error('Reference must be a local PNG, JPEG or WebP image.');
+  if (references.length > (model.maxReferenceImages ?? 1)) throw new Error(`This image model supports at most ${model.maxReferenceImages ?? 1} reference images.`);
   const selected = { ...model, size: input.size ?? model.size, ratio: input.ratio ?? model.ratio, quality: input.quality ?? model.quality, n: input.n ?? model.n };
   const capabilities = imageCapabilities(selected);
   if (input.ratio !== undefined && !capabilities.ratios?.length) throw new Error('ratio is not supported by this image model.');
@@ -74,7 +78,7 @@ export async function generateImages(config: AiConfig, input: GenerateImageInput
   validateImageModel(selected, config);
   const endpoint = config.endpoints.find(item => item.id === model.endpointId)!;
   const adapter = getImageAdapter(model.adapter);
-  const request = adapter.buildRequest(selected, input.prompt.trim(), reference);
+  const request = adapter.buildRequest(selected, input.prompt.trim(), references);
   const headers = { ...request.headers, ...(endpoint.apiKey ? { Authorization: `Bearer ${endpoint.apiKey}` } : {}) };
   const response = await fetch(imageRequestUrl(endpoint.endpoint, model.requestUrl, request.operation), { method: 'POST', headers, body: request.body, signal });
   if (!response.ok) throw new Error(`Image generation failed (HTTP ${response.status}).`);

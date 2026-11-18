@@ -33,7 +33,7 @@
 
 默认情况下 `generate_image` 返回 `{images: [{id, name, type, size}], model, prompt}`，`remove_background` 返回 `{image: {id, name, type, size}, modelId}`。这两项默认使用会话图片读写，不认识项目或画布；`saveImage` / `onImage` 只负责保存及通知，不能隐式放置预览或中间结果。
 
-宿主可为 `generate_image`、`remove_background` 分别提供 `imageExtensions`：扩展中文描述和参数 Schema，`prepare(args, signal)` 校验并捕获目标，可返回原始 `inputImage`；处理完成后 `complete({images, model, prompt}, signal)` 接收 Blob 并返回工具结果。抠图可用 `optional: ['imageId']` 配合宿主参数选择原图。宿主自行校验参数关系、权限、页面和原图变化，并等待写入完成；组件不识别项目或图层。生图扩展配置 `saveImage` 时，组件先将所有原图归档并通过 `onImage` 通知，再调用宿主回调；宿主返回对象时，工具结果的 `images` 包含归档引用。抠图扩展成功时不额外保存会话图片。
+宿主可为 `generate_image`、`remove_background` 分别提供 `imageExtensions`：扩展中文描述和参数 Schema，`prepare(args, signal)` 校验并捕获目标，可返回原始 `inputImage`；生图也可返回 `inputImages` 数组。处理完成后 `complete({images, model, prompt}, signal)` 接收 Blob 并返回工具结果。抠图可用 `optional: ['imageId']` 配合宿主参数选择原图。宿主自行校验参数关系、权限、页面和原图变化，并等待写入完成；组件不识别项目或图层。生图扩展配置 `saveImage` 时，组件先将所有原图归档并通过 `onImage` 通知，再调用宿主回调；宿主返回对象时，工具结果的 `images` 包含归档引用。抠图扩展成功时不额外保存会话图片。
 
 宿主回调失败时，组件保留已归档的生图，或尽力调用 `saveImage` / `onImage` 保留抠图恢复结果，返回保存结果或保存错误，并在同轮阻止重复执行该图片处理工具；宿主须说明写入是否可能已发生。生图归档失败时不会调用宿主回调，已保存的图片仍会保留。取消不自动保存恢复图片。独立宿主扩展可不配置会话存储，但使用附件 ID 或保存失败恢复图片仍需要对应存储回调。`builtInToolDefinitions` 支持相同的 `imageExtensions` Schema，供估算或展示。
 
@@ -56,7 +56,7 @@ const imageExtensions = {
 const { tools } = createBuiltInTools({ config, imageExtensions, loadImage, saveImage, onImage });
 ```
 
-`captureDocument` 和 `insertImages` 由宿主实现；`ImageToolExtensions`、`ImageToolExtension` 可从 `sang-ai-kit/built-in-tools` 导入。扩展参数不能与组件字段重名，`required` 必须引用新增字段；`optional` 只能移除组件原本必填的字段。生图输入原图与 `referenceImageId`、抠图输入原图与 `imageId` 均不能同时提供。
+`captureDocument` 和 `insertImages` 由宿主实现；`ImageToolExtensions`、`ImageToolExtension` 可从 `sang-ai-kit/built-in-tools` 导入。扩展参数不能与组件字段重名，`required` 必须引用新增字段；`optional` 只能移除组件原本必填的字段。生图使用 `referenceImageIds` 提供多个附件 ID，旧版 `referenceImageId` 仍支持单图；这两种方式不能混用，也不能与宿主输入原图混用。抠图输入原图与 `imageId` 均不能同时提供。直接调用 `generateImages` 时，第四个参数接受单个图片 data URL 或其数组。
 
 ---
 

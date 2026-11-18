@@ -10,10 +10,10 @@ export const kolors: ImageAdapter = {
     if (!Number.isInteger(model.steps) || model.steps < 1 || model.steps > 100) throw new Error('Kolors steps must be between 1 and 100.');
     if (!Number.isFinite(model.guidance) || model.guidance < 0 || model.guidance > 20) throw new Error('Kolors guidance must be between 0 and 20.');
   },
-  buildRequest(model, prompt, reference) {
+  buildRequest(model, prompt, references = []) {
     return {
       operation: 'generations', headers: { 'Content-Type': 'application/json', 'X-Enable-Watermark': '0' },
-      body: JSON.stringify({ model: model.modelId, prompt, image_size: model.size, num_inference_steps: model.steps, guidance_scale: model.guidance, ...(reference ? { image: reference } : {}) })
+      body: JSON.stringify({ model: model.modelId, prompt, image_size: model.size, num_inference_steps: model.steps, guidance_scale: model.guidance, ...(references.length ? { image: references[0] } : {}) })
     };
   },
   readResults: data => readImageResults(data, 'images')

@@ -20,10 +20,11 @@ export interface ImageModelConfig {
   guidance: number;
   quality?: ImageQuality;
   n?: number;
+  maxReferenceImages?: number;
   timeoutSeconds?: number;
 }
 
-export type ImagePromptConfig = Pick<ImageModelConfig, 'id' | 'label' | 'adapter' | 'modelId' | 'version' | 'releasedAt' | 'timeoutSeconds' | 'description' | 'size' | 'ratio' | 'quality' | 'n'>;
+export type ImagePromptConfig = Pick<ImageModelConfig, 'id' | 'label' | 'adapter' | 'modelId' | 'version' | 'releasedAt' | 'timeoutSeconds' | 'description' | 'size' | 'ratio' | 'quality' | 'n' | 'maxReferenceImages'>;
 
 export interface GenerateImageInput {
   modelConfigId: string;
@@ -47,7 +48,7 @@ export interface ImageCapabilities {
 export interface ImageAdapter {
   capabilities: (model: Pick<ImageModelConfig, 'modelId'>) => ImageCapabilities;
   validate: (model: ImageModelConfig) => void;
-  buildRequest: (model: ImageModelConfig, prompt: string, reference?: string) => {
+  buildRequest: (model: ImageModelConfig, prompt: string, references?: string[]) => {
     operation: 'generations' | 'edits';
     headers: Record<string, string>;
     body: string | FormData;

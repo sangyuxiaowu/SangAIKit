@@ -16,8 +16,8 @@ export function getImageAdapter(adapter: ImageAdapterId): ImageAdapter {
   return adapters[adapter];
 }
 
-export function imageCapabilities(model: Pick<ImageModelConfig, 'adapter' | 'modelId'>) {
-  return getImageAdapter(model.adapter).capabilities(model);
+export function imageCapabilities(model: Pick<ImageModelConfig, 'adapter' | 'modelId' | 'maxReferenceImages'>) {
+  return { ...getImageAdapter(model.adapter).capabilities(model), maxReferenceImages: model.maxReferenceImages ?? 1 };
 }
 
 export const IMAGE_MODEL_PRESETS = [
@@ -42,6 +42,7 @@ export function createImageModel(presetId: ImagePresetId): ImageModelConfig {
     version: preset.version, releasedAt: preset.releasedAt,
     endpointId: '', requestUrl: '', enabled: false, size: preset.size, ratio: '1:1', steps: 20, guidance: 7.5,
     ...(preset.adapter === 'gpt-image' ? { quality: 'high' as const, n: 1 } : {}),
+    maxReferenceImages: preset.adapter === 'gpt-image' ? 5 : 1,
     timeoutSeconds: preset.timeoutSeconds
   };
 }

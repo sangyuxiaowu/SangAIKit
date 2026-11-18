@@ -28,6 +28,8 @@
 | `kolors` | 硅基流动 `Kwai-Kolors/Kolors` | 支持自定义采样步数（`steps`）、引导系数（`guidance_scale`）、分辨率与参考图输入 |
 | `agnes` | Agnes 视觉生成网关 | 支持多画幅比例、质量档位与异步/同步图像生成响应解析 |
 
+每个模型可设置 `maxReferenceImages`（参考图数量上限）：0 表示仅支持文生图，未设置时为 1；新建 GPT 预设默认为 5。Kolors 协议最多支持 1 张，Agnes 与 GPT 的实际上限应根据所接服务配置。
+
 ---
 
 ## 浏览器端 AES-256-GCM 密钥加密与备份

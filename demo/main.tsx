@@ -525,6 +525,7 @@ function Demo() {
         model: active.endpoint.id === 'local-demo' ? { ...active.model, supportsVision: harness.demoSupportsVision } : active.model
       }}
       imageToolsEnabled={features.imageGeneration && (availableImageModels(config).length > 0 || harness.simulation.simulateImageGeneration)}
+      maxImageAttachments={features.imageGeneration ? Math.max(4, ...availableImageModels(config).map(model => model.maxReferenceImages ?? 1)) : 4}
       toolLabels={{
         demo_context: ['读取工作区上下文', 'Read workspace context'],
         read_workspace: ['读取工作区画布', 'Read workspace canvas'],

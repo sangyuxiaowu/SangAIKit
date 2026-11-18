@@ -4,8 +4,31 @@ import { createRoot } from 'react-dom/client';
 import { expect, it, vi } from 'vitest';
 import { DEFAULT_AI_FEATURES, type AiFeatures } from '../src/features';
 import AiSettings from '../src/AiSettings';
+import ImageModelSettings from '../src/ImageModelSettings';
+import { createImageModel } from '../src/image-generation';
 import { DEFAULT_SETTINGS, createEndpoint, createModel, normalizeConfig, resolveSelection } from '../src/modelConfig';
 import DemoIntegrationSettings from './DemoIntegrationSettings';
+
+it('edits the reference image limit including zero', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const endpoint = createEndpoint('openai');
+  const model = createImageModel('gpt-image-2');
+  const config = { endpoints: [endpoint], imageModels: [model], activeSelection: { endpointId: endpoint.id, modelId: endpoint.models[0].id }, systemPrompt: '' };
+  const onChange = vi.fn();
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(<ImageModelSettings config={config} onChange={onChange} english={false} />));
+    const field = host.querySelector<HTMLInputElement>(`#${model.id}-references`)!;
+    expect(field.value).toBe('5');
+    expect(field.min).toBe('0');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, '0');
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ imageModels: [expect.objectContaining({ maxReferenceImages: 0 })] }));
+  } finally { await act(async () => root.unmount()); }
+});
 
 vi.mock('../src/background-removal/useResources', () => ({ useResources: () => ({
   settings: { modelId: 'u2netp', device: 'wasm' }, models: {}, runtime: false, loading: false, error: ''

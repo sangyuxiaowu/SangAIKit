@@ -38,7 +38,7 @@ import './assistant.css';
 
 export default function AiAssistant({
   assistant, floating, language, theme = 'dark', title, emptyTitle, emptyDescription, contextTitle, contextMeta, imageInsertAction, classifyGalleryImage,
-  quickSnippets, features: featureSettings, onFork, active, imageToolsEnabled, toolLabels = {}, loadImage, createImageUpload, imageModelForTool,
+  quickSnippets, features: featureSettings, onFork, active, imageToolsEnabled, maxImageAttachments = 4, toolLabels = {}, loadImage, createImageUpload, imageModelForTool,
   sumUsage, renderMarkdown, renderUsage, renderModelControls, renderSettings,
   open: propOpen,
   onOpenChange
@@ -80,6 +80,7 @@ export default function AiAssistant({
   const english = language === 'en';
   const controlsDisabled = assistant.busy || assistant.loading || assistant.saving || Boolean(assistant.loadError);
   const label = (zh: string, en: string) => (english ? en : zh);
+  const imageAttachmentLimit = Number.isSafeInteger(maxImageAttachments) && maxImageAttachments > 0 ? maxImageAttachments : 4;
 
   const activeSession = assistant.sessions.find(session => session.id === assistant.activeSessionId);
   const currentSessionTitle = activeSession?.title || label('新对话', 'New Chat');
@@ -189,8 +190,8 @@ export default function AiAssistant({
     if (controlsDisabled || !active.model.supportsVision) return;
     const selectedFiles = files ? Array.from(files) : [];
     if (!selectedFiles.length) return;
-    if (imageUploads.length + selectedFiles.length > 4) {
-      setInputAlert(label('每条消息最多添加 4 张图片。', 'Attach up to 4 images per message.'));
+    if (imageUploads.length + selectedFiles.length > imageAttachmentLimit) {
+      setInputAlert(label(`每条消息最多添加 ${imageAttachmentLimit} 张图片。`, `Attach up to ${imageAttachmentLimit} images per message.`));
       return;
     }
     try {
@@ -850,9 +851,9 @@ export default function AiAssistant({
                         <button
                           type="button"
                           onClick={() => imageInputRef.current?.click()}
-                          disabled={controlsDisabled || imageUploads.length >= 4}
+                          disabled={controlsDisabled || imageUploads.length >= imageAttachmentLimit}
                           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-emerald-300 disabled:opacity-30"
-                          title={label('添加图片／生图参考（最多 4 张）', 'Attach images / generation references (up to 4)')}
+                          title={label(`添加图片／生图参考（最多 ${imageAttachmentLimit} 张）`, `Attach images / generation references (up to ${imageAttachmentLimit})`)}
                           aria-label={label('添加图片', 'Attach image')}
                         >
                           <ImagePlus size={14} />

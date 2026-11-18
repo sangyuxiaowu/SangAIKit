@@ -112,6 +112,7 @@ const runner: AssistantRunner = async (messages, events) => {
   }}
   active={{ model: active.model }}
   imageToolsEnabled={features.imageGeneration && availableImageModels(config).length > 0}
+  maxImageAttachments={Math.max(4, ...availableImageModels(config).map(model => model.maxReferenceImages ?? 1))}
   loadImage={loadDemoImage}
   createImageUpload={createImageUpload}
   imageModelForTool={resolveImageModelForTool}

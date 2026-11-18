@@ -327,6 +327,40 @@ it('allows a host without frontend credentials and displays host send errors', a
   }
 });
 
+it('accepts five image attachments when configured', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('requestAnimationFrame', () => 1);
+  vi.stubGlobal('cancelAnimationFrame', () => {});
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:test'), revokeObjectURL: vi.fn() }));
+  const send = vi.fn<AssistantController['send']>(async () => {});
+  const controller: AssistantController = {
+    entries: [], sessions: [], activeSessionId: null, busy: false, loading: false, saving: false,
+    loadError: '', keyError: false, configError: '', executionError: null, confirmation: null,
+    send, stop: () => {}, newSession: async () => {}, selectSession: async () => {},
+    renameSession: async () => {}, deleteSession: async () => {}, reloadConfig: async () => {},
+    clearExecutionError: () => {}, retry: async () => {}, regenerate: async () => {}
+  };
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(<AiAssistant assistant={controller}
+      floating={{ minimized: false, setMinimized: () => {}, resizeByKeyboard: () => {} }}
+      open language="en" title="Assistant" emptyTitle="Ready" emptyDescription="Ask"
+      active={{ model: { supportsVision: true } }} quickSnippets={[]} imageToolsEnabled maxImageAttachments={5}
+      loadImage={async () => null} createImageUpload={async file => ({ image: { id: file.name, name: file.name, type: 'image/png', size: file.size }, blob: file })}
+      imageModelForTool={() => undefined} sumUsage={() => undefined}
+      renderMarkdown={() => null} renderUsage={() => null} renderModelControls={() => null} renderSettings={() => null} />));
+    const input = host.querySelector<HTMLInputElement>('input[type=file]')!;
+    Object.defineProperty(input, 'files', { configurable: true, value: Array.from({ length: 5 }, (_, index) => new File(['image'], `${index}.png`, { type: 'image/png' })) });
+    await act(async () => input.dispatchEvent(new Event('change', { bubbles: true })));
+    expect(host.querySelectorAll('button[aria-label^="Remove image:"]')).toHaveLength(5);
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Attach image"]')!.disabled).toBe(true);
+    await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+    expect(send.mock.calls[0][1]).toHaveLength(5);
+  } finally { await act(async () => root.unmount()); }
+});
+
 it('preserves the reply when an attachment needed for regeneration is missing', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const images = createIndexedDbImageStore(`missing-redo-images-${crypto.randomUUID()}`);

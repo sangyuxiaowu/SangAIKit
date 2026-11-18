@@ -19,11 +19,18 @@ export function imageToolDefinitions(models: ImagePromptConfig[] = []): BuiltInT
     ratio: { type: 'string', description: '宽高比（如16:9）。仅部分模型支持，当不传 size 时生效。' },
     quality: { type: 'string', description: '生成质量。越高越慢，省略用默认值。' },
     referenceImageId: { type: 'string', description: '可选，原图 ID，来自附件或工具返回，作为参考图。' },
+    referenceImageIds: { type: 'array', items: { type: 'string' }, description: '可选，参考图 ID 数组，来自附件或工具返回；不要与 referenceImageId 同时使用。' },
     n: { type: 'integer', minimum: 1, maximum: 10, description: '可选，生成数量，省略使用模型配置；须在模型支持范围内。' }
   };
   if (single) {
     delete properties.modelConfigId;
     const capabilities = imageCapabilities(single);
+    if (!capabilities.maxReferenceImages) {
+      delete properties.referenceImageId;
+      delete properties.referenceImageIds;
+    } else {
+      properties.referenceImageIds.maxItems = capabilities.maxReferenceImages;
+    }
     properties.size.description += ` 默认值：${single.size}；${capabilities.exactSizeSupported ? '推荐尺寸' : '支持尺寸'}：${capabilities.sizes.join('、')}。`;
     if (!capabilities.ratios) delete properties.ratio;
     else properties.ratio = { type: 'string', description: `仅档位尺寸使用；省略为 ${single.ratio}。`, enum: capabilities.ratios };

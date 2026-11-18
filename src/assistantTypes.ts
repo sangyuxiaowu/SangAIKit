@@ -132,6 +132,7 @@ export interface AssistantViewProps {
   onFork?: (event: AssistantForkEvent) => void;
   active: { endpoint?: unknown; model: { label?: string; supportsVision: boolean } };
   imageToolsEnabled?: boolean;
+  maxImageAttachments?: number;
   toolLabels?: Record<string, [string, string]>;
   loadImage: (sessionId: string, imageId: string, type?: string) => Promise<Blob | null>;
   createImageUpload: (file: File, imageToolsEnabled?: boolean) => Promise<ImageUpload>;

@@ -493,6 +493,20 @@ export default function ImageModelSettings({ config, onChange, english }: Props)
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
+                          <label htmlFor={`${model.id}-references`} className={labelClass}>{label('参考图数量上限（0 为不支持）', 'Max Reference Images (0 disables)')}</label>
+                          <input
+                            id={`${model.id}-references`}
+                            type="number"
+                            min={0}
+                            max={model.adapter === 'kolors' ? 1 : undefined}
+                            step={1}
+                            required
+                            className={`${inputClass} font-mono`}
+                            value={model.maxReferenceImages ?? 1}
+                            onChange={event => update(model.id, { maxReferenceImages: Number(event.target.value) })}
+                          />
+                        </div>
+                        <div>
                           <label className={labelClass}>{label('默认尺寸', 'Default Size')}</label>
                           {!capabilities.exactSizeSupported ? (
                             <select

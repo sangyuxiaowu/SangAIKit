@@ -23,15 +23,17 @@ export const gptImage: ImageAdapter = {
     if (!qualities(model.modelId).includes(model.quality ?? 'high')) throw new Error('Unsupported GPT-Image quality.');
     if (!Number.isInteger(model.n ?? 1) || (model.n ?? 1) < 1 || (model.n ?? 1) > 10) throw new Error('Image count must be between 1 and 10; provider limits may be lower.');
   },
-  buildRequest(model, prompt, reference): ReturnType<ImageAdapter['buildRequest']> {
+  buildRequest(model, prompt, references = []): ReturnType<ImageAdapter['buildRequest']> {
     const fields = { model: model.modelId, prompt, size: model.size, quality: model.quality ?? 'high', n: model.n ?? 1, output_format: 'png' };
-    if (!reference) return { operation: 'generations', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) };
-    const [metadata, encoded] = reference.split(',');
-    const mime = metadata.slice(5, metadata.indexOf(';'));
-    const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+    if (!references.length) return { operation: 'generations', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) };
     const body = new FormData();
     for (const [key, value] of Object.entries(fields)) body.append(key, String(value));
-    body.append('image', new Blob([bytes], { type: mime }), `reference.${mime === 'image/jpeg' ? 'jpg' : mime.split('/')[1]}`);
+    for (const reference of references) {
+      const [metadata, encoded] = reference.split(',');
+      const mime = metadata.slice(5, metadata.indexOf(';'));
+      const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
+      body.append(references.length === 1 ? 'image' : 'image[]', new Blob([bytes], { type: mime }), `reference.${mime === 'image/jpeg' ? 'jpg' : mime.split('/')[1]}`);
+    }
     return { operation: 'edits', headers: {}, body };
   },
   readResults: data => readImageResults(data, 'data')
