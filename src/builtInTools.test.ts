@@ -158,11 +158,12 @@ test('generates multiple saved images from one original reference without any ho
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test('host extension injects a schema, supplies original reference bytes and receives results without session saving', async () => {
+test('host extension injects a schema, supplies original reference bytes and archives results', async () => {
   const originalFetch = globalThis.fetch;
   const source = new Blob([Uint8Array.from(atob('iVBORw0KGgo='), c => c.charCodeAt(0))], { type: 'image/png' });
   let request: FormData | undefined;
   let saves = 0;
+  const savedNames: string[] = [];
   const extension: ImageToolExtension = {
     description: '生成并交给宿主。',
     properties: { projectId: { type: 'string' }, referenceLayerId: { type: 'string' } },
@@ -178,14 +179,15 @@ test('host extension injects a schema, supplies original reference bytes and rec
   }, { preconnect: originalFetch.preconnect });
   try {
     const tool = createBuiltInTools({ config: config(), imageExtensions: { generate_image: extension },
-      saveImage: async (blob, name) => { saves++; return { id: 'saved', name, type: 'image/png', size: blob.size }; } })
+      saveImage: async (blob, name) => { saves++; savedNames.push(name); return { id: `saved-${saves}`, name, type: 'image/png', size: blob.size }; } })
       .tools.find(item => item.name === 'generate_image')!;
     expect(tool.parameters.required).toEqual(['prompt', 'projectId']);
     expect(tool.description).toBe('生成并交给宿主。');
     const result = await tool.execute({ prompt: 'City', projectId: 'p', referenceLayerId: 'layer', n: 2 }, new AbortController().signal);
-    expect(result).toMatchObject({ layerIds: ['layer-0', 'layer-1'] });
+    expect(result).toMatchObject({ layerIds: ['layer-0', 'layer-1'], images: [{ id: 'saved-1' }, { id: 'saved-2' }] });
+    expect(savedNames.every(name => /^generated-/.test(name))).toBe(true);
     expect(await (request!.get('image') as File).arrayBuffer()).toEqual(await source.arrayBuffer());
-    expect(saves).toBe(0);
+    expect(saves).toBe(2);
     await expect(tool.execute({ prompt: 'City', referenceLayerId: 'layer' }, new AbortController().signal)).rejects.toThrow('projectId');
     expect(() => createBuiltInTools({ config: config(), imageExtensions: { generate_image: { ...extension, properties: { prompt: { type: 'string' } } } } })).toThrow('conflicts');
   } finally { globalThis.fetch = originalFetch; }
@@ -212,17 +214,39 @@ test('host application failure saves recovery images and blocks repeated generat
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test('reports both application and recovery-storage failures', async () => {
+test('reports archive failure without applying or retrying generation', async () => {
   const originalFetch = globalThis.fetch;
+  let applied = false;
   const extension: ImageToolExtension = {
     description: '宿主工具', properties: {}, prepare: async () => ({
-      complete: async () => { throw new Error('Canvas failed'); }
+      complete: async () => { applied = true; }
     })
   };
   globalThis.fetch = Object.assign(async () => Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }] }), { preconnect: originalFetch.preconnect });
   try {
     const tool = createBuiltInTools({ config: config(), imageExtensions: { generate_image: extension },
       saveImage: async () => { throw new Error('Storage full'); } }).tools.find(item => item.name === 'generate_image')!;
-    await expect(tool.execute({ prompt: 'City' }, new AbortController().signal)).rejects.toThrow('Canvas failed. No recovery images were saved. Recovery saving failed: Storage full.');
+    await expect(tool.execute({ prompt: 'City' }, new AbortController().signal)).rejects.toThrow('Image generation succeeded but saving failed: Storage full');
+    expect(applied).toBe(false);
+    await expect(tool.execute({ prompt: 'City' }, new AbortController().signal)).rejects.toThrow('Do not retry');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('preserves already archived images when a later archive write fails', async () => {
+  const originalFetch = globalThis.fetch;
+  const images: string[] = [];
+  let applied = false;
+  const extension: ImageToolExtension = { description: 'Host', properties: {}, prepare: async () => ({ complete: async () => { applied = true; } }) };
+  globalThis.fetch = Object.assign(async () => Response.json({ data: [{ b64_json: 'iVBORw0KGgo=' }, { b64_json: 'iVBORw0KGgo=' }] }), { preconnect: originalFetch.preconnect });
+  try {
+    let count = 0;
+    const tool = createBuiltInTools({ config: config(), imageExtensions: { generate_image: extension },
+      saveImage: async (blob, name) => {
+        if (++count === 2) throw new Error('Storage full');
+        return { id: 'first', name, type: 'image/png', size: blob.size };
+      }, onImage: image => images.push(image.id) }).tools.find(item => item.name === 'generate_image')!;
+    await expect(tool.execute({ prompt: 'City', n: 2 }, new AbortController().signal)).rejects.toThrow('Saved image IDs: first');
+    expect(images).toEqual(['first']);
+    expect(applied).toBe(false);
   } finally { globalThis.fetch = originalFetch; }
 });

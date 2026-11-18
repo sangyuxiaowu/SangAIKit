@@ -133,7 +133,7 @@ export interface AssistantViewProps {
   active: { endpoint?: unknown; model: { label?: string; supportsVision: boolean } };
   imageToolsEnabled?: boolean;
   toolLabels?: Record<string, [string, string]>;
-  loadImage: (sessionId: string, imageId: string) => Promise<Blob | null>;
+  loadImage: (sessionId: string, imageId: string, type?: string) => Promise<Blob | null>;
   createImageUpload: (file: File, imageToolsEnabled?: boolean) => Promise<ImageUpload>;
   imageModelForTool: (tool: ToolEvent) => { modelId: string; label: string } | undefined;
   sumUsage: (requests: RequestUsage[]) => TokenUsage | undefined;

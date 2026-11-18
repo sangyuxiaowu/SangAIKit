@@ -59,16 +59,17 @@ export async function deliverImageResult(
   result: ImageToolResult,
   signal: AbortSignal,
   saveImage?: (blob: Blob, name: string) => Promise<SessionImage>,
-  onImage?: (image: SessionImage) => void
+  onImage?: (image: SessionImage) => void,
+  archivedImages?: SessionImage[]
 ): Promise<unknown> {
   try {
     signal.throwIfAborted();
     return await prepared.complete(result, signal);
   } catch (error) {
     if (signal.aborted) throw error;
-    const saved: SessionImage[] = [];
+    const saved: SessionImage[] = archivedImages ?? [];
     let recoveryError: unknown;
-    if (saveImage) {
+    if (saveImage && !archivedImages) {
       try {
         for (const [index, blob] of result.images.entries()) {
           const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png';

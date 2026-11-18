@@ -152,6 +152,35 @@ it('allows host-defined preview classification and action visibility with generi
   }
 });
 
+it('prioritizes the selected category after bounded pending loads and passes image types', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const host = document.createElement('div');
+  const root = createRoot(host);
+  const pending: ((blob: Blob | null) => void)[] = [];
+  const onLoadImage = vi.fn((_sessionId: string, _imageId: string, _type?: string) => new Promise<Blob | null>(resolve => pending.push(resolve)));
+  const session: ChatSession = {
+    id: 'session', title: 'Chat', updatedAt: 1,
+    entries: [{ content: '', images: [
+      ...Array.from({ length: 8 }, (_, index) => ({ id: `gen${index}`, name: `generated-${index}.png`, type: 'image/png' as const, size: 1 })),
+      { id: 'preview', name: 'canvas-preview.webp', type: 'image/webp', size: 1 }
+    ] }]
+  };
+  try {
+    await act(async () => root.render(<SessionList sessions={[session]} activeId="session" disabled={false} english={false}
+      onNew={async () => {}} onSelect={async () => {}} onRename={async () => {}} onDelete={async () => {}}
+      onLoadImage={onLoadImage} classifyGalleryImage={image => image.name.includes('preview') ? 'preview' : undefined} />));
+    await act(async () => { host.querySelector<HTMLElement>('[title="点击打开图片画廊并预览保存"]')!.click(); });
+    expect(onLoadImage).toHaveBeenCalledTimes(4);
+    await act(async () => { host.querySelector<HTMLButtonElement>('[title="预览图片"]')!.click(); });
+    await act(async () => { pending[0](null); await Promise.resolve(); });
+    expect(onLoadImage).toHaveBeenCalledTimes(5);
+    expect(onLoadImage).toHaveBeenLastCalledWith('session', 'preview', 'image/webp');
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});
+
 it('selects and inverts only the current category and confirms before deleting', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const host = document.createElement('div');

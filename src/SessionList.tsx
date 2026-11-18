@@ -58,7 +58,7 @@ interface Props {
   onSelect: (id: string) => Promise<void>;
   onRename: (id: string, title: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onLoadImage?: (sessionId: string, imageId: string) => Promise<Blob | null>;
+  onLoadImage?: (sessionId: string, imageId: string, type?: string) => Promise<Blob | null>;
   onDeleteImages?: (images: { sessionId: string; imageId: string }[]) => Promise<boolean>;
   onInsertImage?: (item: InsertGalleryImageInput) => Promise<unknown>;
 }
@@ -134,6 +134,7 @@ export default function SessionList({
   const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
   const cachedUrls = useRef<Record<string, string>>({});
   const attemptedImages = useRef(new Set<string>());
+  const activeLoads = useRef(0);
   const mounted = useRef(true);
 
   const label = (zh: string, en: string) => (english ? en : zh);
@@ -298,10 +299,11 @@ export default function SessionList({
     if (view !== 'gallery' || !onLoadImage) return;
 
     filteredGalleryItems.forEach(item => {
-      if (!imageUrls[item.id] && !attemptedImages.current.has(item.id)) {
+      if (activeLoads.current < 4 && !imageUrls[item.id] && !attemptedImages.current.has(item.id)) {
         attemptedImages.current.add(item.id);
+        activeLoads.current++;
         setLoadingImages(prev => ({ ...prev, [item.id]: true }));
-        onLoadImage(item.sessionId, item.imageId)
+        onLoadImage(item.sessionId, item.imageId, item.type)
           .then(blob => {
             if (blob && mounted.current && validImageIds.current.has(item.id)) {
               const url = URL.createObjectURL(blob);
@@ -311,6 +313,7 @@ export default function SessionList({
           })
           .catch(() => {})
           .finally(() => {
+            activeLoads.current--;
             if (mounted.current) setLoadingImages(prev => ({ ...prev, [item.id]: false }));
           });
       }
@@ -363,7 +366,7 @@ export default function SessionList({
     }
 
     if (onLoadImage) {
-      onLoadImage(item.sessionId, item.imageId).then(blob => {
+      onLoadImage(item.sessionId, item.imageId, item.type).then(blob => {
         if (!blob) return;
         const tempUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');

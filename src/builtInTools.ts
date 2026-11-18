@@ -93,7 +93,25 @@ export function createBuiltInTools(options: BuiltInToolOptions): { tools: Respon
         prompt = args.prompt;
       } catch (error) { if (!signal.aborted) failures++; throw error; }
       if (prepared) {
-        try { return await deliverImageResult(prepared, { images: results, model, prompt }, signal, options.saveImage, options.onImage); }
+        try {
+          const saved: SessionImage[] = [];
+          if (options.saveImage) {
+            try {
+              for (const blob of results) {
+                signal.throwIfAborted();
+                const image = await options.saveImage(blob, `generated-${Date.now()}-${saved.length + 1}.${blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png'}`);
+                saved.push(image);
+                options.onImage?.(image);
+              }
+              signal.throwIfAborted();
+            } catch (error) {
+              if (signal.aborted) throw error;
+              throw new ImageApplicationError(`Image generation succeeded but saving failed: ${error instanceof Error ? error.message : String(error)}. Saved image IDs: ${saved.map(image => image.id).join(', ') || 'none'}. Do not automatically repeat image generation.`, error);
+            }
+          }
+          const applied = await deliverImageResult(prepared, { images: results, model, prompt }, signal, undefined, undefined, options.saveImage ? saved : undefined);
+          return saved.length && applied && typeof applied === 'object' && !Array.isArray(applied) ? { ...applied, images: saved } : applied;
+        }
         catch (error) {
           if (error instanceof ImageApplicationError) applicationFailures.add(definition.name);
           throw error;
