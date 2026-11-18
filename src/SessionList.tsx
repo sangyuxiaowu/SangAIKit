@@ -418,7 +418,7 @@ export default function SessionList({
   /* ========================================================================= */
   if (view === 'gallery') {
     return (
-      <section className="w-full space-y-3.5 text-xs select-none" aria-label={label('图片资产画廊', 'Image Gallery')}>
+      <section className="cf-ai-gallery w-full space-y-3.5 text-xs select-none" aria-label={label('图片资产画廊', 'Image Gallery')}>
         {/* 画廊头部导航 */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-800/80">
           <button
@@ -587,7 +587,7 @@ export default function SessionList({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="cf-ai-gallery-grid grid grid-cols-2 gap-2.5">
             {filteredGalleryItems.map(item => {
               const url = imageUrls[item.id];
               const isLoading = loadingImages[item.id];
@@ -694,9 +694,9 @@ export default function SessionList({
                     <div className="text-[11px] font-semibold text-slate-200 truncate group-hover:text-blue-300 transition-colors">
                       {item.name}
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span className="font-mono">{formatBytes(item.size)}</span>
-                      <span className="text-slate-500 truncate max-w-[80px]" title={item.sessionTitle}>
+                    <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400">
+                      <span className="font-mono shrink-0">{formatBytes(item.size)}</span>
+                      <span className="text-slate-500 truncate min-w-0" title={item.sessionTitle}>
                         {item.sessionTitle}
                       </span>
                     </div>

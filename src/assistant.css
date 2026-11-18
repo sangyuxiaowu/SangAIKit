@@ -2053,6 +2053,49 @@
   min-width: 0;
 }
 
+/* 图片资产画廊：根据画廊容器宽度动态调整每行展示图片数量 */
+.cf-ai-gallery {
+  container-type: inline-size;
+  container-name: cf-ai-gallery;
+  min-width: 0;
+}
+
+.cf-ai-gallery-grid {
+  display: grid;
+  gap: 0.625rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+}
+
+@container cf-ai-gallery (max-width: 439px) {
+  .cf-ai-gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container cf-ai-gallery (min-width: 440px) {
+  .cf-ai-gallery-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container cf-ai-gallery (min-width: 620px) {
+  .cf-ai-gallery-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container cf-ai-gallery (min-width: 800px) {
+  .cf-ai-gallery-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@container cf-ai-gallery (min-width: 980px) {
+  .cf-ai-gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  }
+}
+
 .cf-ai-spin {
   animation: cf-ai-spin 1s linear infinite;
 }

@@ -245,6 +245,8 @@ it('offers insertion for generated and attachment images but not previews', asyn
       imageInsertAction={{ label: '插入到当前画布' }} classifyGalleryImage={image => image.name.includes('preview') ? 'preview' : undefined}
       onNew={async () => {}} onSelect={async () => {}} onRename={async () => {}} onDelete={async () => {}} onInsertImage={onInsertImage} />));
     await act(async () => { host.querySelector<HTMLElement>('[title="点击打开图片画廊并预览保存"]')!.click(); });
+    expect(host.querySelector('.cf-ai-gallery')).not.toBeNull();
+    expect(host.querySelector('.cf-ai-gallery-grid')).not.toBeNull();
     const insertButtons = host.querySelectorAll<HTMLButtonElement>('[title="插入到当前画布"]');
     expect(insertButtons).toHaveLength(2);
     await act(async () => { insertButtons[0].click(); });
