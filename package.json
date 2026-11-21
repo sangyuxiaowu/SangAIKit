@@ -80,6 +80,7 @@
     "test:integration": "vitest run demo",
     "typecheck": "tsc --noEmit",
     "build:styles": "vite build --config vite.styles.config.ts",
-    "build": "vite build"
+    "build": "vite build",
+    "publish": "npm login --registry=https://registry.npmjs.org/ &&  npm publish --registry=https://registry.npmjs.org/"
   }
 }
