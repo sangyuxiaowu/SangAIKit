@@ -1,9 +1,9 @@
-import { createIndexedDbImageStore, createResponsesSender, getSelectedReasoningEffort, resolveSelection, useAssistant, type AiConfig, type AiFeatures, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type ResponsesRequestSnapshot, type ResponsesTool } from '../src';
+import { createIndexedDbImageStore, createResponsesSender, getEntryModelContent, getSessionSystemPrompt, getSelectedReasoningEffort, resolvePlaceholders, resolveSelection, useAssistant, type AiConfig, type AiFeatures, type AssistantSnapshot, type AssistantStorage, type ChatMessage, type PlaceholderConfig, type RegisteredTool, type ResponsesRequestSnapshot, type ResponsesTool } from '../src';
 import type { AssistantController, AssistantForkEvent, ToolEvent } from '../src/assistantTypes';
 import type { SessionImage } from '../src/sessionTypes';
 
 const storageKey = 'sang-ai-kit-demo-snapshot-v2';
-export const DEMO_FEATURES: Readonly<AiFeatures> = { imageGeneration: true, skills: true, quickSnippets: true, fontManagement: true, onlineFonts: true, backgroundRemoval: true };
+export const DEMO_FEATURES: Readonly<AiFeatures> = { imageGeneration: true, skills: true, quickSnippets: true, fontManagement: true, onlineFonts: true, backgroundRemoval: true, placeholders: true, sessionToolPicker: true };
 const images = createIndexedDbImageStore('sang-ai-kit-demo-images-v1');
 export const loadDemoImage = (sessionId: string, imageId: string) => images.loadImage(sessionId, imageId);
 const storage: AssistantStorage = {
@@ -31,6 +31,20 @@ export const DEFAULT_SIMULATION_OPTIONS: Readonly<DemoSimulationOptions> = {
   simulateContinuable: false
 };
 
+export interface DemoAssistantOptions {
+  hostTools?: readonly RegisteredTool[];
+  placeholders?: PlaceholderConfig;
+}
+
+const DEFAULT_DEMO_HOST_TOOLS: readonly ResponsesTool[] = [
+  {
+    name: 'read_workspace',
+    description: 'Read the current demo workspace metadata.',
+    parameters: { type: 'object', properties: {} },
+    execute: async () => ({ name: '演示工作区' })
+  }
+];
+
 // 生成真实可用的 PNG 二进制用于演示图片画廊与预览
 function createDemoPngBlob(variant: 'generated' | 'preview' | 'attachment' = 'generated'): Blob {
   // 1x1 彩色透明安全 PNG Base64 载荷（兼容所有浏览器与测试环境）
@@ -54,10 +68,19 @@ export function useDemoAssistant(
   config: AiConfig,
   features: Partial<AiFeatures> = DEMO_FEATURES,
   onRequest?: (request: ResponsesRequestSnapshot) => void,
-  simulation?: Partial<DemoSimulationOptions>
+  simulation?: Partial<DemoSimulationOptions>,
+  options?: DemoAssistantOptions
 ): AssistantController {
   return useAssistant(async (entries, events) => {
     const { endpoint, model } = resolveSelection(config);
+    const activeSystemPrompt = events.session.systemPrompt !== undefined
+      ? (getSessionSystemPrompt(events.session) ?? '')
+      : (await resolvePlaceholders(config.systemPrompt, options?.placeholders, events.session.id, features, 'system')).sentContent;
+    const sessionEnabledTools = events.session.enabledTools;
+    const hostTools = options?.hostTools?.length ? [...options.hostTools] : [...DEFAULT_DEMO_HOST_TOOLS];
+    const lastEntry = entries[entries.length - 1];
+    const resolvedPrompt = lastEntry ? getEntryModelContent(lastEntry) : '';
+
     if (endpoint.id === 'local-demo') {
       const hasCustomSim =
         simulation &&
@@ -73,24 +96,28 @@ export function useDemoAssistant(
         await new Promise(resolve => setTimeout(resolve, 350));
         events.signal.throwIfAborted();
         events.onTool({ ...tool, status: 'success', durationMs: 350, result: '{"status":"ready"}' });
-        const text = `这是本地演示回复，未调用远程模型。\n\n你刚才输入的是：${entries[entries.length - 1].content}`;
+        const text = `这是本地演示回复，未调用远程模型。\n\n你刚才输入的是：${resolvedPrompt}`;
         for (let index = 0; index < text.length; index += 8) {
           events.signal.throwIfAborted();
           await new Promise(resolve => setTimeout(resolve, 40));
           events.onText(text.slice(index, index + 8));
         }
-        events.onHistory([...events.history, { role: 'user', content: entries[entries.length - 1].content }, { role: 'assistant', content: text }]);
+        events.onHistory([...events.history, { role: 'user', content: resolvedPrompt }, { role: 'assistant', content: text }]);
         return;
       }
 
-      const lastPrompt = entries[entries.length - 1]?.content || '';
+      const lastPrompt = resolvedPrompt;
+      const enabledToolSet = sessionEnabledTools ? new Set(sessionEnabledTools) : null;
+      const isToolAllowed = (name: string) => !enabledToolSet || enabledToolSet.has(name);
 
       if (simulation.simulateReasoning) {
         const reasoningId = `reasoning-${crypto.randomUUID()}`;
         const steps = [
-          '正在解析工作区上下文与组件属性状态...\n',
-          `识别用户输入意图：「${lastPrompt.slice(0, 36)}」\n`,
-          '检查已启用工具链与视觉资源约束，准备生成结构化响应。'
+          '正在解析工作区上下文与会话配置状态...\n',
+          `识别实际发送给模型的内容：「${lastPrompt.slice(0, 48)}」\n`,
+          sessionEnabledTools
+            ? `本会话已限定工具集：${sessionEnabledTools.length ? sessionEnabledTools.join(', ') : '（未启用任何工具）'}\n`
+            : '检查已启用工具链与上下文约束，准备生成结构化响应。'
         ];
         for (const chunk of steps) {
           events.signal.throwIfAborted();
@@ -100,14 +127,28 @@ export function useDemoAssistant(
       }
 
       if (simulation.simulateMultiTools) {
-        const chain: Array<{ name: string; args: string; result: string; duration: number }> = [
-          {
-            name: 'read_workspace',
-            args: '{"includeLayers":true}',
-            result: '{"workspace":"演示工作区","canvas":"1920x1080","activeLayers":4}',
-            duration: 240
-          },
-          ...(features.fontManagement
+        const candidateChain: Array<{ name: string; args: string; result: string; duration: number }> = [
+          ...(isToolAllowed('query_novel_outline') && hostTools.some(t => t.name === 'query_novel_outline')
+            ? [
+                {
+                  name: 'query_novel_outline',
+                  args: '{"volume":"第一卷"}',
+                  result: '{"volume":"第一卷·寒雾初起","chapters":12,"hook":"古镜觉醒与城门异变"}',
+                  duration: 210
+                }
+              ]
+            : []),
+          ...(isToolAllowed('read_workspace')
+            ? [
+                {
+                  name: 'read_workspace',
+                  args: '{"includeLayers":true}',
+                  result: '{"workspace":"演示工作区","canvas":"1920x1080","activeLayers":4}',
+                  duration: 240
+                }
+              ]
+            : []),
+          ...(features.fontManagement && isToolAllowed('list_fonts')
             ? [
                 {
                   name: 'list_fonts',
@@ -117,15 +158,19 @@ export function useDemoAssistant(
                 }
               ]
             : []),
-          {
-            name: 'demo_context',
-            args: '{"mode":"multi_step"}',
-            result: '{"status":"ready","verified":true}',
-            duration: 220
-          }
+          ...(enabledToolSet === null
+            ? [
+                {
+                  name: 'demo_context',
+                  args: '{"mode":"multi_step"}',
+                  result: '{"status":"ready","verified":true}',
+                  duration: 220
+                }
+              ]
+            : [])
         ];
 
-        for (const item of chain) {
+        for (const item of candidateChain) {
           const tool: ToolEvent = {
             id: crypto.randomUUID(),
             name: item.name,
@@ -151,7 +196,7 @@ export function useDemoAssistant(
         events.onTool({ ...tool, status: 'success', durationMs: 280, result: '{"status":"ready"}' });
       }
 
-      if (simulation.simulateImageGeneration) {
+      if (simulation.simulateImageGeneration && isToolAllowed('generate_image')) {
         const imgToolId = crypto.randomUUID();
         const imgPrompt = lastPrompt.trim() || '现代几何视觉海报设计，深邃钴蓝与流光渐变';
         const runningImgTool: ToolEvent = {
@@ -175,10 +220,25 @@ export function useDemoAssistant(
         });
       }
 
+      const placeholderCount = lastEntry?.placeholders?.length ?? 0;
       const summaryLines = [
         `这是增强版**本地模拟回复**（未调用外部付费 API）。`,
         ``,
-        `- **当前输入**：${lastPrompt}`,
+        `- **实际发送给模型的内容**：\n\n> ${lastPrompt.replace(/\n/g, '\n> ')}`,
+        ...(placeholderCount > 0
+          ? [`- **已解析占位符快照**：共 ${placeholderCount} 个（点击上方消息中的 \`{{占位符}}\` 标签可随时查看发送时的赋值快照）`]
+          : []),
+        ...(events.session.systemPrompt
+          ? [
+              `- **本会话实际发送系统提示词**：${activeSystemPrompt.slice(0, 120)}${activeSystemPrompt.length > 120 ? '…' : ''}`,
+              ...(events.session.systemPromptPlaceholders?.length
+                ? [`- **系统提示词占位符快照**：共 ${events.session.systemPromptPlaceholders.length} 个（点击顶部系统提示词卡片中的 \`{{占位符}}\` 可查看当时快照）`]
+                : [])
+            ]
+          : []),
+        ...(sessionEnabledTools !== undefined
+          ? [`- **本会话可用工具**：${sessionEnabledTools.length ? sessionEnabledTools.map(name => `\`${name}\``).join(' · ') : '（当前未启用工具）'}`]
+          : []),
         `- **已触发模拟能力**：${[
           simulation.simulateReasoning ? '思考推理流 (Reasoning)' : null,
           simulation.simulateMultiTools ? '多步工具链 (Multi-Tools)' : null,
@@ -191,7 +251,7 @@ export function useDemoAssistant(
         ``,
         simulation.simulateImageGeneration
           ? `生成的演示图像已保存至 IndexedDB，可点击上方工具卡片中的文件名预览，或点击右上角 **「历史对话 -> 图片画廊」** 体验分类筛选与一键置入工作区。`
-          : `你可以在左侧工作区的「组件能力与交互实验室」中随时切换更多插槽与模拟开关。`
+          : `你可以在助手右上角工具按钮或左侧「组件能力与交互实验室」中随时调整本会话工具、修改占位符设定或测试工具栏插槽。`
       ].join('\n');
 
       for (let index = 0; index < summaryLines.length; index += 10) {
@@ -226,25 +286,34 @@ export function useDemoAssistant(
         { role: 'assistant', content: summaryLines }
       ]);
     } else {
-      const messages: ChatMessage[] = await Promise.all(entries.filter(entry => entry.content.trim() || entry.images?.length).map(async entry => {
+      const messages: ChatMessage[] = await Promise.all(entries.filter(entry => entry.content.trim() || entry.sentContent?.trim() || entry.images?.length).map(async entry => {
         const refs = entry.images || [];
-        const content = `${entry.content}${refs.length ? `\n[图片附件：${refs.map(image => `${image.name} (${image.id})`).join(', ')}]` : ''}`;
+        const suffix = refs.length ? `\n[图片附件：${refs.map(image => `${image.name} (${image.id})`).join(', ')}]` : '';
+        const content = `${entry.content}${suffix}`;
+        const modelContent = entry.sentContent !== undefined ? `${entry.sentContent}${suffix}` : undefined;
         const inputImages = entry.role === 'user' ? refs.map(image => `attachment://${image.id}`) : [];
-        return { role: entry.role, content, ...(inputImages.length ? { images: inputImages } : {}) };
+        return {
+          role: entry.role,
+          content,
+          ...(modelContent !== undefined ? { sentContent: modelContent } : {}),
+          ...(inputImages.length ? { images: inputImages } : {})
+        };
       }));
-      const tools: ResponsesTool[] = [{ name: 'read_workspace', description: 'Read the current demo workspace metadata.', parameters: { type: 'object', properties: {} }, execute: async () => ({ name: '演示工作区' }) }];
       let generatedImage: SessionImage | undefined;
       await createResponsesSender({ baseURL: endpoint.endpoint, apiKey: endpoint.apiKey, model: model.modelId,
-        instructions: config.systemPrompt, builtIn: { config, features, loadImage: events.loadImage, saveImage: events.saveImage, onImage: image => { generatedImage ??= image; } },
+        instructions: activeSystemPrompt, builtIn: { config, features, loadImage: events.loadImage, saveImage: events.saveImage, onImage: image => { generatedImage ??= image; } },
         onRequest,
         maxOutputTokens: model.maxTokens, onReasoning: events.onReasoning, onUsage: events.onUsage,
         history: events.history, onHistory: events.onHistory,
         supportsVision: model.supportsVision, loadImage: events.loadImage,
-        onTool: tool => { if (tool.name === 'generate_image' && tool.status === 'running') generatedImage = undefined; events.onTool(tool.name === 'generate_image' && tool.status === 'success' && generatedImage ? { ...tool, image: generatedImage } : tool); }, tools, maxToolRounds: config.maxToolRounds,
+        onTool: tool => { if (tool.name === 'generate_image' && tool.status === 'running') generatedImage = undefined; events.onTool(tool.name === 'generate_image' && tool.status === 'success' && generatedImage ? { ...tool, image: generatedImage } : tool); },
+        tools: hostTools,
+        enabledTools: sessionEnabledTools,
+        maxToolRounds: config.maxToolRounds,
         ...(model.thinkingAvailable ? { reasoningEffort: model.thinkingEnabled ? getSelectedReasoningEffort(model) : 'none' } : {})
       })(messages, events.signal, events.onText);
     }
-  }, storage);
+  }, storage, { placeholders: options?.placeholders, features });
 }
 
 // 一键注入包含思考过程、多工具链、三类画廊图片（AI 生图 / 过程预览 / 参考附件）、Token 用量及可继续状态的全功能演示会话

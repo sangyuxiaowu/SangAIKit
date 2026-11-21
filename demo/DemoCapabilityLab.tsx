@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import {
   Bot,
+  Braces,
   Image as ImageIcon,
   Languages,
   Maximize2,
   Minimize2,
   Play,
+  Rocket,
   RotateCcw,
   Sliders,
   Sparkles,
-  Wand2
+  Wand2,
+  Wrench
 } from 'lucide-react';
+import { resolveToolGroup, resolveToolLabel, resolveToolUiDescription, type StartSessionOptions, type ToolDescriptor } from '../src';
 import type { DemoSimulationOptions } from './useDemoAssistant';
 import { DEFAULT_SIMULATION_OPTIONS } from './useDemoAssistant';
 
@@ -26,6 +30,8 @@ export interface DemoHarnessSettings {
   demoSupportsVision: boolean;
   showUsageBar: boolean;
   showModelControls: boolean;
+  showComposerToolbar: boolean;
+  showHeaderToolPicker: boolean;
   enableEncryptionSlot: boolean;
   showTurnLimits: boolean;
   showSecurityNotice: boolean;
@@ -51,6 +57,8 @@ export const DEFAULT_HARNESS_SETTINGS: Readonly<DemoHarnessSettings> = {
   demoSupportsVision: true,
   showUsageBar: true,
   showModelControls: true,
+  showComposerToolbar: true,
+  showHeaderToolPicker: true,
   enableEncryptionSlot: true,
   showTurnLimits: true,
   showSecurityNotice: true,
@@ -118,6 +126,13 @@ export const PERSONA_PRESETS: Array<{
   }
 ];
 
+export interface DemoPlaceholderValues {
+  '故事介绍': string;
+  '卷纲': string;
+  '角色:张三': string;
+  '角色:李四': string;
+}
+
 interface DemoCapabilityLabProps {
   settings: DemoHarnessSettings;
   onChange: (next: DemoHarnessSettings) => void;
@@ -130,6 +145,14 @@ interface DemoCapabilityLabProps {
   onSeedShowcaseSession: () => Promise<void>;
   onTriggerMinimizedTickerDemo: () => Promise<void>;
   assistantBusy: boolean;
+  availableTools: ToolDescriptor[];
+  activeSessionTools: string[];
+  onStartHostSession: (options: StartSessionOptions) => Promise<void>;
+  onUpdateSessionTools: (toolNames: string[]) => Promise<void>;
+  placeholderValues: DemoPlaceholderValues;
+  onPlaceholderValuesChange: (next: DemoPlaceholderValues) => void;
+  placeholdersEnabled: boolean;
+  onInjectComposerExample: () => void;
 }
 
 export default function DemoCapabilityLab({
@@ -143,10 +166,31 @@ export default function DemoCapabilityLab({
   onApplyWindowPreset,
   onSeedShowcaseSession,
   onTriggerMinimizedTickerDemo,
-  assistantBusy
+  assistantBusy,
+  availableTools,
+  activeSessionTools,
+  onStartHostSession,
+  onUpdateSessionTools,
+  placeholderValues,
+  onPlaceholderValuesChange,
+  placeholdersEnabled,
+  onInjectComposerExample
 }: DemoCapabilityLabProps) {
   const [seeding, setSeeding] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ui' | 'slots' | 'gallery' | 'simulator'>('simulator');
+  const [launching, setLaunching] = useState(false);
+  const [activeTab, setActiveTab] = useState<'workflow' | 'ui' | 'slots' | 'gallery' | 'simulator'>('workflow');
+  const [launchTitle, setLaunchTitle] = useState('小说创作：寒雾古城');
+  const [launchSystemPrompt, setLaunchSystemPrompt] = useState(
+    '你是一位擅长东方悬疑长篇小说的共创编辑。当前作品世界观设定：{{故事介绍}}。请严格依据设定、卷纲与角色档案展开情节，人物言行须符合设定。'
+  );
+  const [launchShowSystemPrompt, setLaunchShowSystemPrompt] = useState(true);
+  const [launchInitialPrompt, setLaunchInitialPrompt] = useState(
+    '请结合{{故事介绍}}与{{卷纲}}，围绕{{角色:张三}}设计第一章开篇的冲突场景。'
+  );
+  const [launchAutoSend, setLaunchAutoSend] = useState(true);
+  const [launchTools, setLaunchTools] = useState<string[]>(() =>
+    availableTools.filter(tool => tool.source === 'host' || tool.name === 'list_fonts').map(tool => tool.name)
+  );
 
   const update = <K extends keyof DemoHarnessSettings>(key: K, value: DemoHarnessSettings[K]) => {
     onChange({ ...settings, [key]: value });
@@ -169,6 +213,34 @@ export default function DemoCapabilityLab({
       await onSeedShowcaseSession();
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const toggleLaunchTool = (name: string) => {
+    setLaunchTools(prev => (prev.includes(name) ? prev.filter(item => item !== name) : [...prev, name]));
+  };
+
+  const toggleLiveSessionTool = (name: string) => {
+    const next = activeSessionTools.includes(name)
+      ? activeSessionTools.filter(item => item !== name)
+      : [...activeSessionTools, name];
+    void onUpdateSessionTools(next);
+  };
+
+  const handleLaunchSession = async () => {
+    if (launching || assistantBusy) return;
+    setLaunching(true);
+    try {
+      await onStartHostSession({
+        title: launchTitle.trim() || undefined,
+        systemPrompt: launchSystemPrompt,
+        showSystemPrompt: launchShowSystemPrompt,
+        initialPrompt: launchInitialPrompt,
+        autoSend: launchAutoSend,
+        enabledTools: launchTools.filter(name => availableTools.some(tool => tool.name === name))
+      });
+    } finally {
+      setLaunching(false);
     }
   };
 
@@ -202,6 +274,16 @@ export default function DemoCapabilityLab({
 
       {/* 顶部子标签切换 */}
       <div className="demo-lab-tabs" role="tablist" aria-label="能力分类">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'workflow'}
+          className={`demo-lab-tab ${activeTab === 'workflow' ? 'active' : ''}`}
+          onClick={() => setActiveTab('workflow')}
+        >
+          <Rocket size={13} />
+          <span>会话启动、工具与占位符</span>
+        </button>
         <button
           type="button"
           role="tab"
@@ -243,6 +325,201 @@ export default function DemoCapabilityLab({
           <span>图片画廊与画布联动</span>
         </button>
       </div>
+
+      {/* 面板 0：宿主启动会话、统一工具选择、占位符快照与工具栏插槽 */}
+      {activeTab === 'workflow' && (
+        <div className="demo-lab-panel demo-workflow-panel">
+          <div className="demo-workflow-card">
+            <div className="demo-workflow-card-head">
+              <div>
+                <strong>1. 宿主启动新会话 (<code>assistant.startSession</code>)</strong>
+                <small>传入系统提示词、是否展示给用户、首条用户提示词及本会话可用工具（业务工具 + 内置工具）。</small>
+              </div>
+              <button
+                type="button"
+                className="demo-lab-seed-btn"
+                disabled={launching || assistantBusy}
+                onClick={() => void handleLaunchSession()}
+              >
+                <Rocket size={13} />
+                <span>{launching ? '启动中...' : '以当前配置启动新会话'}</span>
+              </button>
+            </div>
+
+            <div className="demo-limit-grid">
+              <label>
+                会话标题 (<code>title</code>)
+                <input
+                  type="text"
+                  value={launchTitle}
+                  onChange={e => setLaunchTitle(e.target.value)}
+                />
+              </label>
+              <label className="demo-feature">
+                <input
+                  type="checkbox"
+                  checked={launchShowSystemPrompt}
+                  onChange={e => setLaunchShowSystemPrompt(e.target.checked)}
+                />
+                <span>
+                  <strong>向用户展示系统提示词 (<code>showSystemPrompt</code>)</strong>
+                  <small>开启后在对话流顶部渲染可折叠的系统提示词卡片。</small>
+                </span>
+              </label>
+              <label className="demo-lab-span-2">
+                系统提示词 (<code>systemPrompt</code>，支持 <code>{'{{占位符}}'}</code>)
+                <textarea
+                  rows={2}
+                  value={launchSystemPrompt}
+                  onChange={e => setLaunchSystemPrompt(e.target.value)}
+                />
+              </label>
+              <label className="demo-lab-span-2">
+                首条用户提示词 (<code>initialPrompt</code>，支持 <code>{'{{占位符}}'}</code>)
+                <textarea
+                  rows={2}
+                  value={launchInitialPrompt}
+                  onChange={e => setLaunchInitialPrompt(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="demo-workflow-tools-block">
+              <div className="demo-workflow-subhead">
+                <span><Wrench size={12} /> 新会话初始可用工具 (<code>enabledTools</code>)</span>
+                <label className="demo-inline-check">
+                  <input
+                    type="checkbox"
+                    checked={launchAutoSend}
+                    onChange={e => setLaunchAutoSend(e.target.checked)}
+                  />
+                  <span>启动后立即发送首条提示词</span>
+                </label>
+              </div>
+              <div className="demo-tool-chip-grid">
+                {availableTools.map(tool => {
+                  const checked = launchTools.includes(tool.name);
+                  return (
+                    <label key={tool.name} className={`demo-tool-chip ${checked ? 'is-checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleLaunchTool(tool.name)}
+                      />
+                      <span>
+                        <strong>{resolveToolLabel(tool, false)}</strong>
+                        <small>{resolveToolGroup(tool, false)} · {tool.source === 'host' ? '业务' : '内置'}</small>
+                        <small>{resolveToolUiDescription(tool, false)}</small>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="demo-workflow-card">
+            <div className="demo-workflow-card-head">
+              <div>
+                <strong>2. 随时调整当前会话可用工具 (<code>assistant.setSessionTools</code>)</strong>
+                <small>与助手右上角扳手面板实时双向同步，修改后立即影响下一次模型请求。</small>
+              </div>
+              <div className="demo-lab-btn-group">
+                <button
+                  type="button"
+                  className="demo-lab-action-chip"
+                  onClick={() => void onUpdateSessionTools(availableTools.map(tool => tool.name))}
+                >
+                  全部启用
+                </button>
+                <button
+                  type="button"
+                  className="demo-lab-action-chip"
+                  onClick={() => void onUpdateSessionTools([])}
+                >
+                  全部关闭
+                </button>
+              </div>
+            </div>
+            <div className="demo-tool-chip-grid">
+              {availableTools.map(tool => {
+                const checked = activeSessionTools.includes(tool.name);
+                return (
+                  <label key={`live-${tool.name}`} className={`demo-tool-chip ${checked ? 'is-checked' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleLiveSessionTool(tool.name)}
+                    />
+                    <span>
+                      <strong>{resolveToolLabel(tool, false)}</strong>
+                      <small>{resolveToolGroup(tool, false)} · {tool.source === 'host' ? '业务' : '内置'}</small>
+                      <small>{resolveToolUiDescription(tool, false)}</small>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <label className="demo-feature">
+              <input
+                type="checkbox"
+                checked={settings.showHeaderToolPicker}
+                onChange={e => update('showHeaderToolPicker', e.target.checked)}
+              />
+              <span>
+                <strong>显示右上角自带工具设置面板 (<code>showHeaderToolPicker</code>)</strong>
+                <small>关闭后隐藏右上角扳手按钮，方便宿主仅在输入框上方工具栏插槽自定义工具选择控件。</small>
+              </span>
+            </label>
+          </div>
+
+          <div className="demo-workflow-card">
+            <div className="demo-workflow-card-head">
+              <div>
+                <strong>3. 宿主占位符实时数据与快照验证 (<code>placeholders</code>)</strong>
+                <small>
+                  {placeholdersEnabled
+                    ? '先发送带 {{角色:张三}} 的消息，再修改下方内容；点击历史消息里的 {{角色:张三}} 芯片即可验证发送时的快照未被覆盖。'
+                    : '当前已在下方「接入配置」中关闭占位符替换开关，发送时将原样保留 {{...}}。'}
+                </small>
+              </div>
+              <div className="demo-lab-btn-group">
+                <button
+                  type="button"
+                  className="demo-lab-action-chip"
+                  onClick={onInjectComposerExample}
+                >
+                  <Braces size={12} />
+                  <span>通过 composerRef 写入带占位符草稿</span>
+                </button>
+              </div>
+            </div>
+            <div className="demo-limit-grid">
+              {(Object.keys(placeholderValues) as Array<keyof DemoPlaceholderValues>).map(key => (
+                <label key={key}>
+                  <code>{`{{${key}}}`}</code>
+                  <textarea
+                    rows={2}
+                    value={placeholderValues[key]}
+                    onChange={e => onPlaceholderValuesChange({ ...placeholderValues, [key]: e.target.value })}
+                  />
+                </label>
+              ))}
+            </div>
+            <label className="demo-feature">
+              <input
+                type="checkbox"
+                checked={settings.showComposerToolbar}
+                onChange={e => update('showComposerToolbar', e.target.checked)}
+              />
+              <span>
+                <strong>启用输入框上方工具栏插槽 (<code>renderComposerToolbar</code>)</strong>
+                <small>在输入框上方渲染快捷提示词下拉框、占位符插入下拉框及操作按钮，直接调用 <code>ComposerController</code> 操控光标与内容。</small>
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* 面板 1：本地模拟与场景触发 */}
       {activeTab === 'simulator' && (

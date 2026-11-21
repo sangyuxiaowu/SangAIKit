@@ -116,19 +116,20 @@ export function estimateResponseInput(input: unknown[], instructions: string): n
 }
 
 export function sessionUsageSummary(session: AssistantSession | undefined, model: { modelId: string; contextWindow: number; maxTokens: number }, endpoint: string, instructions: string, prompt: string): UsageSummary {
+  const effectiveInstructions = session?.sentSystemPrompt ?? (session?.systemPrompt !== undefined ? session.systemPrompt : instructions);
   const requests = session?.requests || [];
   const last = [...(session?.entries || [])].reverse().find(entry => entry.role === 'assistant');
   const currentRequests = requests.filter(request => request.entryId === last?.id);
   const matching = [...requests].reverse().find(request => request.usage && request.endpoint.replace(/\/+$/, '') === endpoint.replace(/\/+$/, '') && request.model === model.modelId);
   const history = session?.responseItems || [];
   const projected = prompt.trim() ? [...history, { role: 'user', content: prompt.trim() }] : history;
-  const estimate = estimateResponseInput(projected, instructions);
+  const estimate = estimateResponseInput(projected, effectiveInstructions);
   const contextTokens = matching?.usage && matching.inputEstimate !== undefined ? Math.max(0, matching.usage.inputTokens + estimate - matching.inputEstimate) : estimate;
   const contextWindow = model.contextWindow || 128000;
   const percent = contextTokens / contextWindow * 100;
   const toolItems = history.filter(item => item && typeof item === 'object' && 'type' in item && (item.type === 'function_call' || item.type === 'function_call_output'));
   const messages = history.filter(item => !toolItems.includes(item));
-  const systemAndTools = estimateResponseInput([], instructions);
+  const systemAndTools = estimateResponseInput([], effectiveInstructions);
   const toolData = Math.ceil(new TextEncoder().encode(JSON.stringify(toolItems)).length / 3);
   const historyMessages = Math.ceil(new TextEncoder().encode(JSON.stringify(messages)).length / 3);
   const currentTurnEstimate = prompt.trim() ? Math.ceil(new TextEncoder().encode(prompt.trim()).length / 3) : 0;

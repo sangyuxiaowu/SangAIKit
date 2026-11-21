@@ -17,6 +17,8 @@ export type { ImageToolExtension, ImageToolExtensions, ImageToolResult, ImageToo
 export interface BuiltInToolOptions {
   config: AiConfig;
   features?: Partial<AiFeatures>;
+  /** Optional session allowlist of tool names; when specified, only matching built-in tools and their prompt extensions are included */
+  enabledTools?: readonly string[];
   loadImage?: (imageId: string) => Promise<Blob | null>;
   saveImage?: (blob: Blob, name: string) => Promise<SessionImage>;
   onImage?: (image: SessionImage) => void;
@@ -138,8 +140,10 @@ export function createBuiltInTools(options: BuiltInToolOptions): { tools: Respon
       } catch (error) { if (!signal.aborted) failures++; throw error; }
     }
   }));
-  const imagePrompt = imageModels.length ? config.imageToolPrompt?.trim() : '';
-  const skillPrompt = skillsPrompt(skills);
+  const allowed = options.enabledTools !== undefined ? new Set(options.enabledTools) : undefined;
+  const activeTools = allowed ? tools.filter(tool => allowed.has(tool.name)) : tools;
+  const imagePrompt = imageModels.length && activeTools.some(tool => tool.name === 'generate_image') ? config.imageToolPrompt?.trim() : '';
+  const skillPrompt = activeTools.some(tool => tool.name === 'skill') ? skillsPrompt(skills) : '';
   const basePrompt = imagePrompt && !config.systemPrompt.includes(imagePrompt) ? `${config.systemPrompt}\n\n${imagePrompt}` : config.systemPrompt;
-  return { tools, instructions: skillPrompt && !basePrompt.includes(skillPrompt) ? `${basePrompt}\n\n${skillPrompt}` : basePrompt };
+  return { tools: activeTools, instructions: skillPrompt && !basePrompt.includes(skillPrompt) ? `${basePrompt}\n\n${skillPrompt}` : basePrompt };
 }

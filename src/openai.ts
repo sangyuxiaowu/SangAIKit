@@ -8,6 +8,8 @@ import { runToolLoop } from './toolLoop';
 import { estimateResponseInput, normalizeUsage, prepareResponseInput, sanitizeResponseItems } from './conversationUtils';
 import { generateId } from './id';
 import { createBuiltInTools, type BuiltInToolOptions } from './builtInTools';
+import type { AiFeatures } from './features';
+import { isPlaceholdersEnabled, resolvePlaceholders, type PlaceholderConfig } from './placeholders';
 
 export { reasoningRequestParams } from './responses';
 
@@ -42,6 +44,12 @@ export interface ResponsesConfig {
   onReasoning?: (text: string, itemId?: string) => void;
   tools?: ResponsesTool[];
   builtIn?: BuiltInToolOptions;
+  /** Optional host placeholder config to resolve {{...}} tokens in system instructions */
+  placeholders?: PlaceholderConfig;
+  /** Optional feature flags used alongside placeholders */
+  features?: Partial<AiFeatures>;
+  /** Optional session-level allowlist of tool names applied across both host tools and built-in tools */
+  enabledTools?: readonly string[];
   onTool?: (tool: ToolEvent) => void;
   maxToolRounds?: number;
   timeoutMs?: number;
@@ -100,14 +108,27 @@ export function createResponsesSender(config: ResponsesConfig): ChatSender {
   const client = new OpenAI({ baseURL: url.toString().replace(/\/$/, ''), ...openAiAuthOptions(config.apiKey), dangerouslyAllowBrowser: true, maxRetries: 0 });
   return async (messages, signal, onText) => {
     const loadImage = config.loadImage ?? config.builtIn?.loadImage;
-    const builtIn = config.builtIn ? createBuiltInTools({ ...config.builtIn, config: { ...config.builtIn.config, systemPrompt: config.instructions ?? config.builtIn.config.systemPrompt } }) : undefined;
-    const tools = [...(config.tools || []), ...(builtIn?.tools || [])];
-    if (new Set(tools.map(tool => tool.name)).size !== tools.length || tools.some(tool => !tool.name)) throw new Error('工具名称必须非空且唯一。');
-    const instructions = builtIn?.instructions ?? config.instructions;
+    const enabledTools = config.enabledTools ?? config.builtIn?.enabledTools;
+    const allowed = enabledTools !== undefined ? new Set(enabledTools) : undefined;
+    const rawInstructions = config.instructions ?? config.builtIn?.config.systemPrompt;
+    const placeholderFeatures = config.features ?? config.builtIn?.features;
+    const resolvedBaseInstructions = rawInstructions !== undefined && isPlaceholdersEnabled(config.placeholders, placeholderFeatures)
+      ? (await resolvePlaceholders(rawInstructions, config.placeholders, '', placeholderFeatures, 'system')).sentContent
+      : rawInstructions;
+    const allBuiltIn = config.builtIn ? createBuiltInTools({ ...config.builtIn, enabledTools: undefined, config: { ...config.builtIn.config, systemPrompt: resolvedBaseInstructions ?? config.builtIn.config.systemPrompt } }) : undefined;
+    const allRegisteredTools = [...(config.tools || []), ...(allBuiltIn?.tools || [])];
+    if (new Set(allRegisteredTools.map(tool => tool.name)).size !== allRegisteredTools.length || allRegisteredTools.some(tool => !tool.name)) throw new Error('工具名称必须非空且唯一。');
+    const builtIn = config.builtIn && allowed
+      ? createBuiltInTools({ ...config.builtIn, enabledTools, config: { ...config.builtIn.config, systemPrompt: resolvedBaseInstructions ?? config.builtIn.config.systemPrompt } })
+      : allBuiltIn;
+    const hostTools = allowed ? (config.tools || []).filter(tool => allowed.has(tool.name)) : (config.tools || []);
+    const tools = [...hostTools, ...(builtIn?.tools || [])];
+    const instructions = builtIn?.instructions ?? resolvedBaseInstructions;
     const newMessages: ResponseInputItem[] = (config.history?.length ? messages.slice(-1) : messages).map(message => {
-      if (message.role !== 'user' || !message.images?.length) return { role: message.role, content: message.content };
+      const text = message.sentContent ?? message.content;
+      if (message.role !== 'user' || !message.images?.length) return { role: message.role, content: text };
       if (message.images.some(image => !isLocalImage(image))) throw new Error('Image input must be a local PNG, JPEG or WebP data URL or attachment reference.');
-      return { role: 'user', content: [{ type: 'input_text', text: message.content }, ...message.images.map(image => ({ type: 'input_image' as const, image_url: image, detail: 'auto' as const }))] };
+      return { role: 'user', content: [{ type: 'input_text', text }, ...message.images.map(image => ({ type: 'input_image' as const, image_url: image, detail: 'auto' as const }))] };
     });
     const input: ResponseInputItem[] = [...sanitizeResponseItems((config.history || []) as ResponseInputItem[]), ...newMessages];
     await runToolLoop<ResponseInputItem, Extract<Response['output'][number], { type: 'function_call' }>>({

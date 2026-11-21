@@ -3,12 +3,12 @@ import { createRoot } from 'react-dom/client';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { BookOpen, Bot, CircleHelp, Image as ImageIcon, LayoutDashboard, MessageSquare, Monitor, Moon, Palette, RotateCcw, Sun, Trash2, Wand2 } from 'lucide-react';
-import { AiAssistant, AiSettings, ConfigDecryptionError, EncryptionKeySettings, FontSettings, ImageModelSettings, ModelControls, SkillSettings, TokenUsageBar, DEFAULT_SETTINGS, availableImageModels, createBrowserAiStore, createEndpoint, createImageUpload, createKeyBackupCodec, createModel, normalizeConfig, normalizeAiFeatures, resolveSelection, selectModel, sessionUsageSummary, sumUsage, updateActiveModel, useFloatingPanel, useResolvedTheme, type AiConfig, type AiFeatures, type AssistantTheme, type FloatingStore, type InsertGalleryImageInput, type ResponsesRequestSnapshot } from '../src';
+import { AiAssistant, AiSettings, ConfigDecryptionError, EncryptionKeySettings, FontSettings, ImageModelSettings, ModelControls, SkillSettings, TokenUsageBar, DEFAULT_SETTINGS, availableImageModels, createBrowserAiStore, createEndpoint, createImageUpload, createKeyBackupCodec, createModel, createToolRegistry, listAvailableTools, normalizeConfig, normalizeAiFeatures, resolveSelection, selectModel, sessionUsageSummary, sumUsage, updateActiveModel, useFloatingPanel, useResolvedTheme, type AiConfig, type AiFeatures, type AssistantTheme, type ComposerController, type FloatingStore, type InsertGalleryImageInput, type PlaceholderConfig, type PlaceholderItem, type ResponsesRequestSnapshot, type StartSessionOptions } from '../src';
 import { DEMO_FEATURES, forkDemoConversation, loadDemoImage, seedDemoShowcaseSession, useDemoAssistant } from './useDemoAssistant';
 import DemoIntegrationSettings from './DemoIntegrationSettings';
 import DemoColorMatting from './DemoColorMatting';
 import DemoRequestInspector, { redactRequestSnapshot } from './DemoRequestInspector';
-import DemoCapabilityLab, { DEFAULT_HARNESS_SETTINGS, type DemoHarnessSettings } from './DemoCapabilityLab';
+import DemoCapabilityLab, { DEFAULT_HARNESS_SETTINGS, type DemoHarnessSettings, type DemoPlaceholderValues } from './DemoCapabilityLab';
 import DemoDocsView, { DOC_CHAPTERS } from './DemoDocsView';
 import { THEME_PALETTES, buildThemeStyleVariables, getPaletteById, type PaletteId } from './palettes';
 import './demo.css';
@@ -90,6 +90,26 @@ interface InsertedCanvasAsset extends InsertGalleryImageInput {
   insertedAt: number;
 }
 
+const DEFAULT_DEMO_PLACEHOLDERS: DemoPlaceholderValues = {
+  '故事介绍': '《寒雾古城》：一座被终年冷雾封锁的边陲古城，每逢子时钟声响起，城中便会有一段记忆被悄然改写。',
+  '卷纲': '第一卷·寒雾初起：外乡修表匠张三踏入古城寻找失踪兄长，在当铺中发现一块逆时针走动的古镜怀表，卷入巡城司与暗阁的博弈。',
+  '角色:张三': '张三（男，26岁）：沉默敏锐的修表匠，擅长从微小机械磨损推断时间线；随身携带兄长留下的半枚铜钥匙，性格冷静但极度护短。',
+  '角色:李四': '李四（女，24岁）：古城典当行掌柜，表面圆滑爱财，实为暗阁前任记录官，掌握着古城近十年的记忆失窃卷宗。'
+};
+
+const DEMO_PLACEHOLDER_ITEMS: PlaceholderItem[] = [
+  { key: '故事介绍', label: '故事介绍', group: '设定', description: '当前小说作品的世界观与核心设定' },
+  { key: '卷纲', label: '当前卷纲', group: '大纲', description: '当前分卷的主线脉络与冲突节点' },
+  { key: '角色:张三', label: '角色：张三', group: '角色', description: '主角张三的人物档案与性格设定' },
+  { key: '角色:李四', label: '角色：李四', group: '角色', description: '重要角色李四的人物档案与秘密' }
+];
+
+const DEMO_COMPOSER_QUICK_PROMPTS = [
+  { label: '开篇冲突构思', text: '请结合{{故事介绍}}与{{卷纲}}，围绕{{角色:张三}}设计一个充满悬念的开篇场景。' },
+  { label: '双角色对手戏', text: '写一段{{角色:张三}}与{{角色:李四}}在当铺初遇的试探性对话，埋下怀表伏笔。' },
+  { label: '设定一致性核查', text: '请检查当前草稿是否与{{故事介绍}}及{{角色:张三}}的人物动机存在矛盾。' }
+];
+
 function Demo() {
   const initialVisual = useRef(initialPaletteState()).current;
   const [activeView, setActiveView] = useState<'workspace' | 'docs'>('workspace');
@@ -109,6 +129,114 @@ function Demo() {
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState('');
   const [keyError, setKeyError] = useState(false);
+  const [placeholderValues, setPlaceholderValues] = useState<DemoPlaceholderValues>(DEFAULT_DEMO_PLACEHOLDERS);
+  const placeholderValuesRef = useRef(placeholderValues);
+  placeholderValuesRef.current = placeholderValues;
+  const composerRef = useRef<ComposerController | null>(null);
+
+  const hostToolRegistry = useMemo(() => {
+    const registry = createToolRegistry();
+    registry.registerMany([
+      {
+        name: 'read_workspace',
+        label: { zh: '读取工作区画布', en: 'Read workspace canvas' },
+        group: { zh: '编辑工具', en: 'Editing Tools' },
+        uiDescription: { zh: '读取当前编辑中的章节正文与画布状态', en: 'Read the active chapter content and workspace state' },
+        description: 'Return JSON metadata of the current workspace canvas and active chapter document for LLM context.',
+        parameters: { type: 'object', properties: {} },
+        execute: async () => ({ name: '演示工作区', activeDocument: '寒雾古城 · 第一章' })
+      },
+      {
+        name: 'read_chapter_content',
+        label: { zh: '读取指定章节', en: 'Read chapter content' },
+        group: { zh: '编辑工具', en: 'Editing Tools' },
+        uiDescription: { zh: '读取指定章节内容', en: 'Read the text of a specified chapter' },
+        description: 'Fetch raw chapter text by chapterNumber (1-based integer) from the host manuscript store.',
+        parameters: {
+          type: 'object',
+          properties: { chapterNumber: { type: 'number', description: '章节编号，例如 1' } },
+          required: ['chapterNumber']
+        },
+        execute: async args => ({
+          chapterNumber: Number(args.chapterNumber) || 1,
+          title: '第一章·寒雾入城',
+          excerpt: '子时的雾气沿着青石巷口漫进来，张三停在典当行门前，听见柜台后传来怀表逆行的轻响。'
+        })
+      },
+      {
+        name: 'query_novel_outline',
+        label: { zh: '查询小说卷纲', en: 'Query novel outline' },
+        group: { zh: '设定与大纲', en: 'Lore & Outline' },
+        uiDescription: { zh: '查看当前小说分卷大纲与剧情节点', en: 'View the current volume outline and story beats' },
+        description: 'Retrieve structured volume outline JSON for the given volume name from the host novel database.',
+        parameters: {
+          type: 'object',
+          properties: { volume: { type: 'string', description: '分卷名称' } }
+        },
+        execute: async () => ({ outline: placeholderValuesRef.current['卷纲'] })
+      },
+      {
+        name: 'query_character_sheet',
+        label: { zh: '读取角色设定卡', en: 'Query character sheet' },
+        group: { zh: '设定与大纲', en: 'Lore & Outline' },
+        uiDescription: { zh: '查看指定角色的背景、性格与人物关系', en: 'Inspect character background, traits, and relationships' },
+        description: 'Query character sheet record by exact character name (e.g. 张三 or 李四).',
+        parameters: {
+          type: 'object',
+          properties: { name: { type: 'string', description: '角色名，如 张三 或 李四' } },
+          required: ['name']
+        },
+        execute: async args => {
+          const name = typeof args.name === 'string' ? args.name.trim() : '';
+          const key = `角色:${name}` as keyof DemoPlaceholderValues;
+          return { name, profile: placeholderValuesRef.current[key] || '未找到该角色设定。' };
+        }
+      }
+    ]);
+    return registry;
+  }, []);
+
+  const hostTools = useMemo(() => hostToolRegistry.list(), [hostToolRegistry]);
+
+  const availableTools = useMemo(
+    () =>
+      listAvailableTools({
+        config,
+        features,
+        hostTools,
+        builtInOverrides: {
+          skill: {
+            group: { zh: '创作规范', en: 'Writing Guides' },
+            uiDescription: { zh: '读取项目中预设的文风、设定与写作规范', en: 'Read project writing style guides and conventions' }
+          },
+          list_fonts: {
+            group: { zh: '排版工具', en: 'Typography' },
+            uiDescription: { zh: '查看当前可用的中英文字体列表', en: 'Browse available fonts for layout and typesetting' }
+          },
+          remove_background: {
+            group: { zh: '视觉与插画', en: 'Visual & Illustration' },
+            uiDescription: { zh: '为角色立绘或插图自动去除背景', en: 'Automatically remove background from character art' }
+          },
+          list_image_models: {
+            group: { zh: '视觉与插画', en: 'Visual & Illustration' }
+          },
+          generate_image: {
+            group: { zh: '视觉与插画', en: 'Visual & Illustration' },
+            uiDescription: { zh: '根据剧情描述生成场景插画或封面图', en: 'Generate scene illustrations or cover art' }
+          }
+        }
+      }),
+    [config, features, hostTools]
+  );
+
+  const placeholderConfig = useMemo<PlaceholderConfig>(
+    () => ({
+      enabled: features.placeholders,
+      items: DEMO_PLACEHOLDER_ITEMS,
+      resolve: key => placeholderValuesRef.current[key as keyof DemoPlaceholderValues]
+    }),
+    [features.placeholders]
+  );
 
   const resolvedTheme = useResolvedTheme(theme);
   const activePalette = getPaletteById(paletteId);
@@ -150,7 +278,8 @@ function Demo() {
     config,
     features,
     (request: ResponsesRequestSnapshot) => setLastRequest(redactRequestSnapshot(request)),
-    harness.simulation
+    harness.simulation,
+    { hostTools, placeholders: placeholderConfig }
   );
 
   const reloadConfig = async () => {
@@ -233,6 +362,31 @@ function Demo() {
     setOpen(true);
     floating.setMinimized(true);
     await assistant.send('演示最小化状态下的实时工具与文本轮播');
+  };
+
+  const activeSession = assistant.sessions.find(session => session.id === assistant.activeSessionId);
+  const activeSessionTools = useMemo(() => {
+    if (activeSession?.enabledTools !== undefined) return activeSession.enabledTools;
+    return availableTools.map(tool => tool.name);
+  }, [activeSession?.enabledTools, availableTools]);
+
+  const handleStartHostSession = async (options: StartSessionOptions) => {
+    setOpen(true);
+    floating.setMinimized(false);
+    await assistant.newSession(options);
+  };
+
+  const handleUpdateSessionTools = async (toolNames: string[]) => {
+    await assistant.setSessionTools?.(toolNames);
+  };
+
+  const handleInjectComposerExample = () => {
+    setOpen(true);
+    floating.setMinimized(false);
+    window.setTimeout(() => {
+      composerRef.current?.setValue('请根据{{故事介绍}}与{{角色:张三}}的动机，续写{{角色:李四}}在当铺亮出古镜怀表的一幕。');
+      composerRef.current?.focus();
+    }, 30);
   };
 
   return <main className="demo-shell" data-theme={resolvedTheme} data-palette={paletteId} style={themeStyleVars}>
@@ -406,6 +560,14 @@ function Demo() {
               onSeedShowcaseSession={handleSeedShowcase}
               onTriggerMinimizedTickerDemo={handleTriggerMinimizedTicker}
               assistantBusy={assistant.busy}
+              availableTools={availableTools}
+              activeSessionTools={activeSessionTools}
+              onStartHostSession={handleStartHostSession}
+              onUpdateSessionTools={handleUpdateSessionTools}
+              placeholderValues={placeholderValues}
+              onPlaceholderValuesChange={setPlaceholderValues}
+              placeholdersEnabled={features.placeholders}
+              onInjectComposerExample={handleInjectComposerExample}
             />
 
             {/* 宿主功能开关与轮次限制配置 */}
@@ -417,6 +579,7 @@ function Demo() {
               onLimitChange={updateLimit}
               validImageModelCount={availableImageModels(config).length}
               skillCount={config.skills?.length ?? 0}
+              hostToolNames={hostTools.map(tool => tool.name)}
               onReset={resetIntegration}
             />
 
@@ -529,11 +692,69 @@ function Demo() {
       toolLabels={{
         demo_context: ['读取工作区上下文', 'Read workspace context'],
         read_workspace: ['读取工作区画布', 'Read workspace canvas'],
+        read_chapter_content: ['读取指定章节', 'Read chapter content'],
+        query_novel_outline: ['查询小说卷纲', 'Query novel outline'],
+        query_character_sheet: ['读取角色设定卡', 'Query character sheet'],
         render_canvas_preview: ['生成版式过程预览', 'Render layout preview'],
         skill: ['读取 SKILL 规则', 'Read skill'],
         list_fonts: ['查询字体目录', 'List fonts'],
         generate_image: ['生成视觉图像', 'Generate image']
       }}
+      availableTools={availableTools}
+      showHeaderToolPicker={harness.showHeaderToolPicker ? undefined : false}
+      composerRef={composerRef}
+      renderComposerToolbar={
+        harness.showComposerToolbar
+          ? composer => (
+              <>
+                <select
+                  aria-label={composer.language === 'en' ? 'Quick prompt template' : '快捷提示词下拉框'}
+                  defaultValue=""
+                  disabled={composer.disabled}
+                  onChange={event => {
+                    const selected = event.target.value;
+                    if (!selected) return;
+                    composer.setValue(selected);
+                    composer.focus();
+                    event.target.value = '';
+                  }}
+                >
+                  <option value="">{composer.language === 'en' ? 'Quick Prompts...' : '快捷提示词…'}</option>
+                  {DEMO_COMPOSER_QUICK_PROMPTS.map(item => (
+                    <option key={item.label} value={item.text}>{item.label}</option>
+                  ))}
+                </select>
+                {features.placeholders && (
+                  <select
+                    aria-label={composer.language === 'en' ? 'Insert placeholder' : '插入占位符'}
+                    defaultValue=""
+                    disabled={composer.disabled}
+                    onChange={event => {
+                      const key = event.target.value;
+                      if (!key) return;
+                      composer.insertPlaceholder(key);
+                      event.target.value = '';
+                    }}
+                  >
+                    <option value="">{composer.language === 'en' ? '{{ Placeholder }}...' : '{{ 占位符 }}…'}</option>
+                    {DEMO_PLACEHOLDER_ITEMS.map(item => (
+                      <option key={item.key} value={item.key}>{`{{${item.key}}}`}</option>
+                    ))}
+                  </select>
+                )}
+                {composer.value.trim().length > 0 && (
+                  <button
+                    type="button"
+                    disabled={composer.disabled}
+                    onClick={() => composer.clear()}
+                  >
+                    {composer.language === 'en' ? 'Clear' : '清空'}
+                  </button>
+                )}
+              </>
+            )
+          : undefined
+      }
       loadImage={loadDemoImage}
       createImageUpload={createImageUpload}
       imageModelForTool={tool => {

@@ -17,7 +17,7 @@ export { fontListItems, GOOGLE_FONTS, listFonts, normalizeLocalFonts, readInstal
 export { default as TokenUsageBar } from './TokenUsageBar';
 export type { UsageSummary } from './TokenUsageBar';
 export type { SkillPreset, SkillSettingsProps } from './SkillSettings';
-export type { AssistantActivityEvent, AssistantController, AssistantForkEvent, AssistantSession, AssistantViewProps, ChatEntry, ImageUpload, RequestUsage, TokenUsage, ToolEvent } from './assistantTypes';
+export type { AssistantActivityEvent, AssistantController, AssistantForkEvent, AssistantSession, AssistantViewProps, ChatEntry, ComposerController, ImageUpload, RequestUsage, StartSessionOptions, TokenUsage, ToolEvent } from './assistantTypes';
 export type { SessionImage } from './sessionTypes';
 export type { GalleryImageClassifier, GalleryInsertAction, InsertGalleryImageInput } from './SessionList';
 export type { FloatingStore } from './useFloatingPanel';
@@ -35,6 +35,12 @@ export { MAX_SKILLS, MAX_SKILL_CONTENT, normalizeSkills, skillsPrompt, readSkill
 export { DEFAULT_AI_FEATURES, normalizeAiFeatures } from './features';
 export { createBuiltInTools } from './builtInTools';
 export type { BuiltInToolOptions, ImageToolExtension, ImageToolExtensions, ImageToolResult, ImageToolSchemaExtension } from './builtInTools';
+export { default as SessionToolTree } from './SessionToolTree';
+export type { SessionToolTreeProps } from './SessionToolTree';
+export { BUILT_IN_TOOL_GROUPS, BUILT_IN_TOOL_LABELS, BUILT_IN_TOOL_UI_DESCRIPTIONS, applyToolMetadataOverrides, createToolRegistry, filterSessionTools, listAvailableTools, resolveSessionTools, resolveToolGroup, resolveToolLabel, resolveToolUiDescription } from './toolRegistry';
+export type { ListAvailableToolsOptions, RegisteredTool, ResolveSessionToolsOptions, ResolvedSessionTools, ToolDescriptor, ToolLabel, ToolMetadataOverride, ToolRegistry } from './toolRegistry';
+export { formatPlaceholderToken, getEntryModelContent, getSessionSystemPrompt, getPlaceholderItems, isPlaceholdersEnabled, resolvePlaceholders, tokenizePlaceholders } from './placeholders';
+export type { PlaceholderConfig, PlaceholderItem, PlaceholderResolutionResult, PlaceholderResolveContext, PlaceholderResolver, PlaceholderSnapshot, PlaceholderTextSegment } from './placeholders';
 export { applyColorMatting, removeColorBackground } from './background-removal/colorMatting';
 export type { BrushStroke, MattingOptions } from './background-removal/colorMatting';
 export { default as ColorMattingEditor } from './background-removal/ColorMattingEditor';
@@ -49,4 +55,4 @@ export { createIndexedDbImageStore } from './imageStore';
 export type { ImageStore } from './imageStore';
 export type { ToolCall, ToolLoopOptions, ToolLoopResponse } from './toolLoop';
 export type { KeyBackupOptions } from './encryption';
-export type { AssistantRunner, AssistantSnapshot, AssistantStorage } from './useAssistant';
+export type { AssistantRunner, AssistantSnapshot, AssistantStorage, UseAssistantOptions } from './useAssistant';

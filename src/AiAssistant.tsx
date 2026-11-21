@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Bot,
+  Braces,
   Brain,
   Check,
   CheckCircle2,
   CircleAlert,
   Copy,
+  FileText,
   GitFork,
   History,
   Image as ImageIcon,
@@ -23,6 +25,7 @@ import {
   Sparkles,
   Square,
   Trash2,
+  Wrench,
   X,
   Zap
 } from 'lucide-react';
@@ -30,7 +33,10 @@ import { useChatScroll } from 'sang-ai-kit/chat-scroll';
 import SessionList from 'sang-ai-kit/session-list';
 import ToolDuration from './ToolDuration';
 import ChatScrollbar from 'sang-ai-kit/chat-scrollbar';
-import type { AssistantViewProps, ImageUpload } from './assistantTypes';
+import SessionToolTree from './SessionToolTree';
+import type { AssistantViewProps, ComposerController, ImageUpload } from './assistantTypes';
+import { formatPlaceholderToken, tokenizePlaceholders } from './placeholders';
+import { resolveToolLabel } from './toolRegistry';
 import { ResolvedThemeContext, useResolvedTheme } from './useResolvedTheme';
 import { normalizeAiFeatures } from './features';
 import '../generated/sang-ai-utilities.css';
@@ -38,7 +44,8 @@ import './assistant.css';
 
 export default function AiAssistant({
   assistant, floating, language, theme = 'dark', title, emptyTitle, emptyDescription, contextTitle, contextMeta, imageInsertAction, classifyGalleryImage,
-  quickSnippets, features: featureSettings, onFork, active, imageToolsEnabled, maxImageAttachments = 4, toolLabels = {}, loadImage, createImageUpload, imageModelForTool,
+  quickSnippets, features: featureSettings, onFork, active, imageToolsEnabled, maxImageAttachments = 4, toolLabels = {}, availableTools, showHeaderToolPicker, renderComposerToolbar, composerRef,
+  loadImage, createImageUpload, imageModelForTool,
   sumUsage, renderMarkdown, renderUsage, renderModelControls, renderSettings,
   open: propOpen,
   onOpenChange
@@ -60,13 +67,20 @@ export default function AiAssistant({
   const [settings, setSettings] = useState(false);
   const [securityRequested, setSecurityRequested] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
+  const [showToolsPanel, setShowToolsPanel] = useState(false);
+  const [activePlaceholder, setActivePlaceholder] = useState<{ entryId: string; key: string; showFullSent?: boolean } | null>(null);
   const [prompt, setPrompt] = useState('');
+  const promptRef = useRef(prompt);
+  promptRef.current = prompt;
+  const selectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const [inputAlert, setInputAlert] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [forking, setForking] = useState(false);
   const chatScroll = useChatScroll(assistant.activeSessionId, open && !floating.minimized, !showSessions);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const toolsTriggerRef = useRef<HTMLButtonElement>(null);
+  const toolsPopoverRef = useRef<HTMLDivElement>(null);
   const [imageUploads, setImageUploads] = useState<ImageUpload[]>([]);
   const [selectedImage, setSelectedImage] = useState<{ name: string; src: string } | null>(null);
   const imagePreviewUrls = useMemo(() => imageUploads.map(item => URL.createObjectURL(item.blob)), [imageUploads]);
@@ -76,6 +90,9 @@ export default function AiAssistant({
     if (!selectedImage) return;
     return () => URL.revokeObjectURL(selectedImage.src);
   }, [selectedImage?.src]);
+  useEffect(() => {
+    setActivePlaceholder(null);
+  }, [assistant.activeSessionId]);
 
   const english = language === 'en';
   const controlsDisabled = assistant.busy || assistant.loading || assistant.saving || Boolean(assistant.loadError);
@@ -84,6 +101,50 @@ export default function AiAssistant({
 
   const activeSession = assistant.sessions.find(session => session.id === assistant.activeSessionId);
   const currentSessionTitle = activeSession?.title || label('新对话', 'New Chat');
+
+  const toolDescriptorMap = useMemo(() => {
+    const map = new Map<string, NonNullable<AssistantViewProps['availableTools']>[number]>();
+    for (const tool of availableTools || []) map.set(tool.name, tool);
+    return map;
+  }, [availableTools]);
+
+  const getToolDisplayName = (toolName: string) => {
+    const descriptor = toolDescriptorMap.get(toolName);
+    return resolveToolLabel(descriptor ?? { name: toolName }, english, toolLabels);
+  };
+
+  const effectiveSessionToolNames = useMemo(() => {
+    if (!availableTools?.length) return new Set<string>();
+    if (activeSession?.enabledTools !== undefined) {
+      return new Set(activeSession.enabledTools.filter(name => availableTools.some(tool => tool.name === name)));
+    }
+    return new Set(availableTools.filter(tool => tool.defaultEnabled !== false).map(tool => tool.name));
+  }, [availableTools, activeSession?.enabledTools]);
+
+  const headerToolPickerVisible = Boolean(
+    (showHeaderToolPicker ?? features.sessionToolPicker) &&
+    availableTools &&
+    availableTools.length > 0 &&
+    assistant.setSessionTools
+  );
+
+  useEffect(() => {
+    if (!headerToolPickerVisible && showToolsPanel) {
+      setShowToolsPanel(false);
+    }
+  }, [headerToolPickerVisible, showToolsPanel]);
+
+  useEffect(() => {
+    if (!showToolsPanel) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (toolsPopoverRef.current?.contains(target) || toolsTriggerRef.current?.contains(target)) return;
+      setShowToolsPanel(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [showToolsPanel]);
 
   // 最小化时轮播真实的模型文本和工具步骤
   const [tickerIndex, setTickerIndex] = useState(0);
@@ -101,7 +162,7 @@ export default function AiAssistant({
     [assistant.entries]
   );
   const runningTool = lastAssistantEntry?.tools?.find(t => t.status === 'running');
-  const runningToolLabel = runningTool ? (toolLabels[runningTool.name]?.[english ? 1 : 0] || runningTool.name) : null;
+  const runningToolLabel = runningTool ? getToolDisplayName(runningTool.name) : null;
 
   const busyStatusList = useMemo(() => {
     if (!assistant.busy) return [];
@@ -113,7 +174,7 @@ export default function AiAssistant({
       if (event.type === 'reasoning') return [];
       const tool = lastAssistantEntry?.tools?.find(item => item.id === event.toolId);
       if (!tool) return [];
-      const name = toolLabels[tool.name]?.[english ? 1 : 0] || tool.name;
+      const name = getToolDisplayName(tool.name);
       return [tool.status === 'running'
         ? (english ? `Executing: ${name}...` : `正在执行：${name}`)
         : tool.status === 'error'
@@ -125,7 +186,7 @@ export default function AiAssistant({
     }
     const defaults = english ? ['Working on your request...'] : ['正在处理您的请求...'];
     return list.length ? list : defaults;
-  }, [assistant.busy, runningToolLabel, lastAssistantEntry, english]);
+  }, [assistant.busy, runningToolLabel, lastAssistantEntry, english, toolDescriptorMap, toolLabels]);
 
   const currentBusyStatus = busyStatusList[tickerIndex % (busyStatusList.length || 1)] || (english ? 'AI is working...' : 'AI 正在执行操作...');
 
@@ -169,22 +230,135 @@ export default function AiAssistant({
     setOpen(false);
   };
 
+  const syncSelection = (element?: HTMLTextAreaElement | null) => {
+    const target = element ?? inputRef.current;
+    if (!target) return;
+    selectionRef.current = {
+      start: target.selectionStart ?? target.value.length,
+      end: target.selectionEnd ?? target.value.length
+    };
+  };
+
+  const restoreFocusAndSelection = (start: number, end: number, shouldFocus = true) => {
+    const apply = () => {
+      const target = inputRef.current;
+      if (!target) return;
+      if (shouldFocus) target.focus();
+      try {
+        target.setSelectionRange(start, end);
+      } catch {
+        /* Ignore selection range errors on detached inputs */
+      }
+    };
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(apply);
+    } else {
+      apply();
+    }
+  };
+
   const submit = (overridePrompt?: string) => {
-    const value = overridePrompt !== undefined ? overridePrompt : prompt;
+    const value = overridePrompt !== undefined ? overridePrompt : promptRef.current;
     const uploads = active.model.supportsVision ? imageUploads : [];
     if ((!value.trim() && !uploads.length) || controlsDisabled) return;
 
     setInputAlert(null);
     setShowSessions(false);
+    setShowToolsPanel(false);
     chatScroll.resetScroll();
+    promptRef.current = '';
+    selectionRef.current = { start: 0, end: 0 };
     setPrompt('');
     if (uploads.length) setImageUploads([]);
     void assistant.send(value.trim() || label('请分析这张图片。', 'Please analyze this image.'), uploads).catch(error => {
+      promptRef.current = value;
+      selectionRef.current = { start: value.length, end: value.length };
       setPrompt(value);
       if (uploads.length) setImageUploads(uploads);
       setInputAlert(error instanceof Error ? error.message : label('发送失败。', 'Unable to send.'));
     });
   };
+
+  const composerController: ComposerController = {
+    value: prompt,
+    setValue: next => {
+      promptRef.current = next;
+      selectionRef.current = { start: next.length, end: next.length };
+      setPrompt(next);
+      setInputAlert(null);
+    },
+    insertText: (text, opts) => {
+      const currentValue = promptRef.current;
+      const start = Math.max(0, Math.min(selectionRef.current.start, currentValue.length));
+      const end = Math.max(start, Math.min(selectionRef.current.end, currentValue.length));
+      const next = `${currentValue.slice(0, start)}${text}${currentValue.slice(end)}`;
+      const caret = start + text.length;
+      promptRef.current = next;
+      selectionRef.current = { start: caret, end: caret };
+      setPrompt(next);
+      setInputAlert(null);
+      restoreFocusAndSelection(caret, caret, opts?.focus !== false);
+    },
+    insertPlaceholder: (key, opts) => {
+      const token = formatPlaceholderToken(key);
+      const currentValue = promptRef.current;
+      const start = Math.max(0, Math.min(selectionRef.current.start, currentValue.length));
+      const end = Math.max(start, Math.min(selectionRef.current.end, currentValue.length));
+      const next = `${currentValue.slice(0, start)}${token}${currentValue.slice(end)}`;
+      const caret = start + token.length;
+      promptRef.current = next;
+      selectionRef.current = { start: caret, end: caret };
+      setPrompt(next);
+      setInputAlert(null);
+      restoreFocusAndSelection(caret, caret, opts?.focus !== false);
+    },
+    appendText: (text, opts) => {
+      const currentValue = promptRef.current;
+      const sep = currentValue && opts?.separator ? opts.separator : '';
+      const next = `${currentValue}${sep}${text}`;
+      promptRef.current = next;
+      selectionRef.current = { start: next.length, end: next.length };
+      setPrompt(next);
+      setInputAlert(null);
+      restoreFocusAndSelection(next.length, next.length, opts?.focus !== false);
+    },
+    clear: () => {
+      promptRef.current = '';
+      selectionRef.current = { start: 0, end: 0 };
+      setPrompt('');
+      setInputAlert(null);
+    },
+    focus: () => {
+      inputRef.current?.focus();
+    },
+    getSelection: () => ({ ...selectionRef.current }),
+    setSelection: (start, end = start) => {
+      const len = promptRef.current.length;
+      const clampedStart = Math.max(0, Math.min(start, len));
+      const clampedEnd = Math.max(clampedStart, Math.min(end, len));
+      selectionRef.current = { start: clampedStart, end: clampedEnd };
+      restoreFocusAndSelection(clampedStart, clampedEnd, false);
+    },
+    submit,
+    disabled: controlsDisabled,
+    language,
+    session: activeSession
+  };
+
+  const composerControllerRef = useRef<ComposerController>(composerController);
+  composerControllerRef.current = composerController;
+
+  useEffect(() => {
+    if (!composerRef) return;
+    if (typeof composerRef === 'function') {
+      composerRef(open ? composerControllerRef.current : null);
+      return () => composerRef(null);
+    }
+    composerRef.current = open ? composerControllerRef.current : null;
+    return () => {
+      composerRef.current = null;
+    };
+  }, [composerRef, open, prompt, controlsDisabled, language, activeSession]);
 
   const addImages = async (files: FileList | File[] | null) => {
     if (controlsDisabled || !active.model.supportsVision) return;
@@ -217,9 +391,13 @@ export default function AiAssistant({
 
   const handleSelectQuickPrompt = (text: string) => {
     if (controlsDisabled) return;
+    promptRef.current = text;
+    selectionRef.current = { start: text.length, end: text.length };
     setPrompt(text);
     inputRef.current?.focus();
   };
+
+  const composerToolbarContent = renderComposerToolbar ? renderComposerToolbar(composerController) : null;
 
   if (!open) return null;
 
@@ -236,6 +414,8 @@ export default function AiAssistant({
             event.preventDefault();
             if (assistant.confirmation) {
               assistant.confirmation.resolve(false);
+            } else if (showToolsPanel) {
+              setShowToolsPanel(false);
             } else {
               close();
             }
@@ -289,17 +469,43 @@ export default function AiAssistant({
                   onClick={() => {
                     void assistant.newSession();
                     setShowSessions(false);
+                    setShowToolsPanel(false);
                   }}
                   title={label('新建对话', 'New Chat')}
                   aria-label={label('新建对话', 'New Chat')}
                 >
                   <Plus size={16} />
                 </button>
+                {headerToolPickerVisible && (
+                  <button
+                    ref={toolsTriggerRef}
+                    type="button"
+                    className={`cf-ai-icon cf-ai-tools-trigger ${showToolsPanel ? 'cf-ai-icon-active' : ''}`}
+                    disabled={assistant.loading || assistant.saving || Boolean(assistant.loadError)}
+                    onClick={() => {
+                      setShowSessions(false);
+                      setShowToolsPanel(previous => !previous);
+                    }}
+                    title={label(
+                      `本会话可用工具 (${effectiveSessionToolNames.size}/${availableTools!.length})`,
+                      `Session Tools (${effectiveSessionToolNames.size}/${availableTools!.length})`
+                    )}
+                    aria-label={label('本会话可用工具', 'Session Tools')}
+                    aria-expanded={showToolsPanel}
+                    aria-haspopup="dialog"
+                  >
+                    <Wrench size={15} />
+                    <span className="cf-ai-tools-count">{effectiveSessionToolNames.size}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`cf-ai-icon ${showSessions ? 'cf-ai-icon-active text-emerald-400 bg-emerald-500/15' : ''}`}
                   disabled={controlsDisabled}
-                  onClick={() => setShowSessions(previous => !previous)}
+                  onClick={() => {
+                    setShowToolsPanel(false);
+                    setShowSessions(previous => !previous);
+                  }}
                   title={label('历史对话', 'Chat History')}
                   aria-label={label('历史对话', 'Chat History')}
                   aria-expanded={showSessions}
@@ -379,6 +585,24 @@ export default function AiAssistant({
               </span>
             </div>}
 
+            {showToolsPanel && headerToolPickerVisible && (
+              <div
+                ref={toolsPopoverRef}
+                className="cf-ai-tools-popover"
+                role="dialog"
+                aria-label={label('本会话可用工具设置', 'Session tools selector')}
+              >
+                <SessionToolTree
+                  tools={availableTools!}
+                  selectedNames={effectiveSessionToolNames}
+                  onChange={names => void assistant.setSessionTools!(names)}
+                  english={english}
+                  toolLabels={toolLabels}
+                  onClose={() => setShowToolsPanel(false)}
+                />
+              </div>
+            )}
+
             {/* 消息区域 */}
             <div className="cf-ai-messages-region">
             <div
@@ -414,6 +638,145 @@ export default function AiAssistant({
                 />
               ) : (
                 <>
+                  {activeSession?.showSystemPrompt && activeSession.systemPrompt?.trim() && (() => {
+                    const sysOwnerId = `sys:${activeSession.id}`;
+                    const sysSegments = activeSession.systemPromptPlaceholders?.length
+                      ? tokenizePlaceholders(activeSession.systemPrompt, activeSession.systemPromptPlaceholders)
+                      : null;
+                    const activeSysSnapshot = activePlaceholder?.entryId === sysOwnerId
+                      ? activeSession.systemPromptPlaceholders?.find(item => item.key === activePlaceholder.key)
+                      : undefined;
+                    const sysTimeText = activeSysSnapshot
+                      ? new Date(activeSysSnapshot.resolvedAt).toLocaleTimeString(english ? 'en-US' : 'zh-CN', { hour12: false })
+                      : '';
+                    const sysCopyKey = activeSysSnapshot ? `ph-${sysOwnerId}-${activeSysSnapshot.key}` : '';
+                    const hasSysSentDiff = Boolean(
+                      activeSession.sentSystemPrompt && activeSession.sentSystemPrompt !== activeSession.systemPrompt
+                    );
+                    return (
+                      <>
+                        <details className="cf-ai-system-prompt" open>
+                          <summary>
+                            <FileText size={13} />
+                            <span>{label('本会话系统提示词', 'Session System Prompt')}</span>
+                            <button
+                              type="button"
+                              className="cf-ai-system-prompt-copy"
+                              onClick={event => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void handleCopy(`sys-${activeSession.id}`, activeSession.systemPrompt!);
+                              }}
+                              title={copiedId === `sys-${activeSession.id}` ? label('已复制', 'Copied') : label('复制系统提示词', 'Copy system prompt')}
+                              aria-label={copiedId === `sys-${activeSession.id}` ? label('已复制', 'Copied') : label('复制系统提示词', 'Copy system prompt')}
+                            >
+                              {copiedId === `sys-${activeSession.id}` ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </summary>
+                          <div className="cf-ai-system-prompt-body">
+                            {sysSegments ? (
+                              sysSegments.map((segment, segIndex) => {
+                                if (segment.type === 'text') {
+                                  return <span key={`${sysOwnerId}-seg-${segIndex}`}>{segment.text}</span>;
+                                }
+                                const isSelected = activePlaceholder?.entryId === sysOwnerId && activePlaceholder.key === segment.key;
+                                return (
+                                  <button
+                                    key={`${sysOwnerId}-ph-${segIndex}`}
+                                    type="button"
+                                    className={`cf-ai-placeholder-chip ${isSelected ? 'is-active' : ''} ${!segment.snapshot.resolved ? 'is-unresolved' : ''}`}
+                                    aria-expanded={isSelected}
+                                    title={label(
+                                      `点击查看「${segment.key}」系统提示词中的内容快照`,
+                                      `Click to inspect snapshot of "${segment.key}" in system prompt`
+                                    )}
+                                    onClick={() =>
+                                      setActivePlaceholder(prev =>
+                                        prev && prev.entryId === sysOwnerId && prev.key === segment.key
+                                          ? null
+                                          : { entryId: sysOwnerId, key: segment.key }
+                                      )
+                                    }
+                                  >
+                                    <Braces size={11} aria-hidden="true" />
+                                    <span>{segment.token}</span>
+                                  </button>
+                                );
+                              })
+                            ) : (
+                              activeSession.systemPrompt
+                            )}
+                          </div>
+                        </details>
+                        {activeSysSnapshot && (
+                          <section
+                            className="cf-ai-placeholder-snapshot is-system"
+                            role="region"
+                            aria-label={`${label('系统提示词占位符快照', 'System prompt placeholder snapshot')}: ${activeSysSnapshot.token}`}
+                          >
+                            <div className="cf-ai-placeholder-snapshot-header">
+                              <div className="cf-ai-placeholder-snapshot-title">
+                                <Braces size={12} />
+                                <strong>{activeSysSnapshot.token}</strong>
+                                {activeSysSnapshot.group && <span className="cf-ai-placeholder-group">{activeSysSnapshot.group}</span>}
+                                <span className="cf-ai-placeholder-time">
+                                  {label(`发送时快照 · ${sysTimeText}`, `Snapshot · ${sysTimeText}`)}
+                                </span>
+                              </div>
+                              <div className="cf-ai-placeholder-snapshot-actions">
+                                {activeSysSnapshot.resolved && (
+                                  <button
+                                    type="button"
+                                    className="cf-ai-placeholder-action"
+                                    onClick={() => void handleCopy(sysCopyKey, activeSysSnapshot.value)}
+                                    title={copiedId === sysCopyKey ? label('已复制', 'Copied') : label('复制快照内容', 'Copy snapshot')}
+                                    aria-label={copiedId === sysCopyKey ? label('已复制', 'Copied') : label('复制快照内容', 'Copy snapshot')}
+                                  >
+                                    {copiedId === sysCopyKey ? <Check size={12} /> : <Copy size={12} />}
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="cf-ai-placeholder-action"
+                                  onClick={() => setActivePlaceholder(null)}
+                                  title={label('关闭快照', 'Close snapshot')}
+                                  aria-label={label('关闭快照', 'Close snapshot')}
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            </div>
+                            <div className="cf-ai-placeholder-snapshot-body">
+                              {activeSysSnapshot.resolved
+                                ? (activeSysSnapshot.value || label('（空内容）', '(empty value)'))
+                                : label('未解析到具体内容，已保留原始占位符发送。', 'No value resolved; kept as raw token.')}
+                            </div>
+                            {hasSysSentDiff && (
+                              <div className="cf-ai-placeholder-snapshot-footer">
+                                <button
+                                  type="button"
+                                  className="cf-ai-placeholder-toggle-sent"
+                                  onClick={() =>
+                                    setActivePlaceholder(prev =>
+                                      prev ? { ...prev, showFullSent: !prev.showFullSent } : null
+                                    )
+                                  }
+                                >
+                                  {activePlaceholder?.showFullSent
+                                    ? label('收起实际发送系统提示词', 'Hide sent system prompt')
+                                    : label('查看实际发送系统提示词', 'View sent system prompt')}
+                                </button>
+                                {activePlaceholder?.showFullSent && (
+                                  <div className="cf-ai-placeholder-sent-body">{activeSession.sentSystemPrompt}</div>
+                                )}
+                              </div>
+                            )}
+                          </section>
+                        )}
+                      </>
+                    );
+                  })()}
+
                   {!assistant.entries.length && (
                     <div className="cf-ai-empty">
                       <div className="cf-ai-empty-icon-wrap">
@@ -475,9 +838,48 @@ export default function AiAssistant({
                             }
                             if (item.type === 'text') {
                               if (!item.text.trim()) return null;
+                              const displayText = entry.role === 'user' ? (entry.rawContent ?? item.text) : item.text;
+                              const segments = entry.role === 'user' && entry.placeholders?.length
+                                ? tokenizePlaceholders(displayText, entry.placeholders)
+                                : null;
                               return (
                                 <div className="cf-ai-message-bubble" key={item.id}>
-                                  {entry.role === 'assistant' ? renderMarkdown(item.text) : <p>{item.text}</p>}
+                                  {entry.role === 'assistant' ? (
+                                    renderMarkdown(item.text)
+                                  ) : segments ? (
+                                    <p className="cf-ai-user-text">
+                                      {segments.map((segment, segIndex) => {
+                                        if (segment.type === 'text') {
+                                          return <span key={`${entry.id}-seg-${segIndex}`}>{segment.text}</span>;
+                                        }
+                                        const isSelected = activePlaceholder?.entryId === entry.id && activePlaceholder.key === segment.key;
+                                        return (
+                                          <button
+                                            key={`${entry.id}-ph-${segIndex}`}
+                                            type="button"
+                                            className={`cf-ai-placeholder-chip ${isSelected ? 'is-active' : ''} ${!segment.snapshot.resolved ? 'is-unresolved' : ''}`}
+                                            aria-expanded={isSelected}
+                                            title={label(
+                                              `点击查看「${segment.key}」发送时的内容快照`,
+                                              `Click to inspect snapshot of "${segment.key}" at send time`
+                                            )}
+                                            onClick={() =>
+                                              setActivePlaceholder(prev =>
+                                                prev && prev.entryId === entry.id && prev.key === segment.key
+                                                  ? null
+                                                  : { entryId: entry.id, key: segment.key }
+                                              )
+                                            }
+                                          >
+                                            <Braces size={11} aria-hidden="true" />
+                                            <span>{segment.token}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </p>
+                                  ) : (
+                                    <p>{displayText}</p>
+                                  )}
                                 </div>
                               );
                             }
@@ -494,7 +896,7 @@ export default function AiAssistant({
                                   ) : (
                                     <CheckCircle2 size={14} className="text-emerald-400" />
                                   )}
-                                  <span>{toolLabels[tool.name]?.[english ? 1 : 0] || tool.name}</span>
+                                  <span>{getToolDisplayName(tool.name)}</span>
                                   {imageModel && <span className="cf-ai-tool-model" title={imageModel.modelId}>{imageModel.label}</span>}
                                   <ToolDuration tool={tool} english={english} />
                                   <span className={`cf-ai-tool-badge ${tool.status}`} title={tool.durationMs === undefined ? undefined : `${label('工具总耗时', 'Total tool elapsed time')}: ${(tool.durationMs / 1000).toFixed(1)}s`}>
@@ -523,6 +925,78 @@ export default function AiAssistant({
                               </details>
                             );
                           })}
+                          {entry.role === 'user' && activePlaceholder?.entryId === entry.id && (() => {
+                            const snapshot = entry.placeholders?.find(item => item.key === activePlaceholder.key);
+                            if (!snapshot) return null;
+                            const timeText = new Date(snapshot.resolvedAt).toLocaleTimeString(english ? 'en-US' : 'zh-CN', { hour12: false });
+                            const copyKey = `ph-${entry.id}-${snapshot.key}`;
+                            const hasSentDiff = Boolean(entry.sentContent && entry.sentContent !== (entry.rawContent ?? entry.content));
+                            return (
+                              <section
+                                className="cf-ai-placeholder-snapshot"
+                                role="region"
+                                aria-label={`${label('占位符快照', 'Placeholder snapshot')}: ${snapshot.token}`}
+                              >
+                                <div className="cf-ai-placeholder-snapshot-header">
+                                  <div className="cf-ai-placeholder-snapshot-title">
+                                    <Braces size={12} />
+                                    <strong>{snapshot.token}</strong>
+                                    {snapshot.group && <span className="cf-ai-placeholder-group">{snapshot.group}</span>}
+                                    <span className="cf-ai-placeholder-time">
+                                      {label(`发送时快照 · ${timeText}`, `Snapshot · ${timeText}`)}
+                                    </span>
+                                  </div>
+                                  <div className="cf-ai-placeholder-snapshot-actions">
+                                    {snapshot.resolved && (
+                                      <button
+                                        type="button"
+                                        className="cf-ai-placeholder-action"
+                                        onClick={() => void handleCopy(copyKey, snapshot.value)}
+                                        title={copiedId === copyKey ? label('已复制', 'Copied') : label('复制快照内容', 'Copy snapshot')}
+                                        aria-label={copiedId === copyKey ? label('已复制', 'Copied') : label('复制快照内容', 'Copy snapshot')}
+                                      >
+                                        {copiedId === copyKey ? <Check size={12} /> : <Copy size={12} />}
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      className="cf-ai-placeholder-action"
+                                      onClick={() => setActivePlaceholder(null)}
+                                      title={label('关闭快照', 'Close snapshot')}
+                                      aria-label={label('关闭快照', 'Close snapshot')}
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="cf-ai-placeholder-snapshot-body">
+                                  {snapshot.resolved
+                                    ? (snapshot.value || label('（空内容）', '(empty value)'))
+                                    : label('发送时未解析到具体内容，已保留原始占位符发送。', 'No value resolved at send time; kept as raw token.')}
+                                </div>
+                                {hasSentDiff && (
+                                  <div className="cf-ai-placeholder-snapshot-footer">
+                                    <button
+                                      type="button"
+                                      className="cf-ai-placeholder-toggle-sent"
+                                      onClick={() =>
+                                        setActivePlaceholder(prev =>
+                                          prev ? { ...prev, showFullSent: !prev.showFullSent } : null
+                                        )
+                                      }
+                                    >
+                                      {activePlaceholder.showFullSent
+                                        ? label('收起实际发送全文', 'Hide sent payload')
+                                        : label('查看实际发送全文', 'View sent payload')}
+                                    </button>
+                                    {activePlaceholder.showFullSent && (
+                                      <div className="cf-ai-placeholder-sent-body">{entry.sentContent}</div>
+                                    )}
+                                  </div>
+                                )}
+                              </section>
+                            );
+                          })()}
                           {entry.continuable && isLastAssistant && !assistant.busy && (
                             <p className="cf-ai-continuable-note">
                               {label('本轮已暂停，已完成的修改已保留。', 'Paused at the turn limit. Completed changes are preserved.')}
@@ -762,7 +1236,7 @@ export default function AiAssistant({
               </div>
             )}
 
-            {/* 底部输入框容器 (悬浮在输入框内部底部的极小尺寸控制工具栏，无分割线) */}
+            {/* 底部输入框容器 (上方提供宿主工具栏插槽，下方悬浮极小尺寸控制工具栏) */}
             <form
               className="p-3 border-t shrink-0 bg-slate-900/60 border-slate-800/80"
               onSubmit={event => {
@@ -770,6 +1244,15 @@ export default function AiAssistant({
                 submit();
               }}
             >
+              {composerToolbarContent && (
+                <div
+                  className="cf-ai-composer-toolbar"
+                  role="toolbar"
+                  aria-label={label('输入工具栏', 'Composer toolbar')}
+                >
+                  {composerToolbarContent}
+                </div>
+              )}
               <div className="relative rounded-xl border transition-colors focus-within:border-blue-500 bg-slate-950/70 border-slate-700/80">
                 {imageUploads.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto px-2 pt-2">
@@ -805,9 +1288,15 @@ export default function AiAssistant({
                     'Message the AI Assistant, Ctrl+Enter to send'
                   )}
                   onChange={event => {
+                    promptRef.current = event.target.value;
                     setPrompt(event.target.value);
+                    syncSelection(event.target);
                     if (inputAlert) setInputAlert(null);
                   }}
+                  onSelect={event => syncSelection(event.currentTarget)}
+                  onClick={event => syncSelection(event.currentTarget)}
+                  onKeyUp={event => syncSelection(event.currentTarget)}
+                  onBlur={event => syncSelection(event.currentTarget)}
                   onPaste={event => {
                     if (!active.model.supportsVision) return;
                     const pastedImages = Array.from(event.clipboardData.items)

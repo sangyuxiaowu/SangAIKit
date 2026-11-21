@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AssistantController, AssistantSession, ChatEntry, ImageUpload, RequestUsage, ToolEvent } from './assistantTypes';
+import type { AssistantController, AssistantSession, ChatEntry, ImageUpload, RequestUsage, StartSessionOptions, ToolEvent } from './assistantTypes';
 import type { SessionImage } from './sessionTypes';
 import type { ImageStore } from './imageStore';
+import type { AiFeatures } from './features';
+import { isPlaceholdersEnabled, resolvePlaceholders, type PlaceholderConfig } from './placeholders';
 import { imageMimeType } from './imageAttachments';
 import { generateId } from './id';
 import { appendReasoningActivity, orderResponseActivity, sumUsage } from './conversationUtils';
@@ -17,8 +19,16 @@ export interface AssistantStorage {
   images?: ImageStore;
 }
 
+export interface UseAssistantOptions {
+  /** Optional host placeholder list & value resolver configuration */
+  placeholders?: PlaceholderConfig;
+  /** Optional host feature switches (checks features.placeholders !== false) */
+  features?: Partial<AiFeatures>;
+}
+
 export type AssistantRunner = (messages: ChatEntry[], events: {
   signal: AbortSignal;
+  session: AssistantSession;
   history: unknown[];
   onHistory: (items: unknown[]) => void;
   onText: (text: string) => void;
@@ -29,10 +39,19 @@ export type AssistantRunner = (messages: ChatEntry[], events: {
   saveImage: (blob: Blob, name: string) => Promise<SessionImage>;
 }) => Promise<void>;
 
-const newSession = (): AssistantSession => ({ id: crypto.randomUUID(), title: '新对话', updatedAt: Date.now(), entries: [], requests: [] });
-const initialSnapshot = (): AssistantSnapshot => { const session = newSession(); return { sessions: [session], activeSessionId: session.id }; };
+const createSession = (options?: StartSessionOptions): AssistantSession => ({
+  id: crypto.randomUUID(),
+  title: options?.title?.trim() || (options?.initialPrompt?.trim().slice(0, 30) || '新对话'),
+  updatedAt: Date.now(),
+  entries: [],
+  requests: [],
+  ...(options?.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}),
+  ...(options?.showSystemPrompt !== undefined ? { showSystemPrompt: options.showSystemPrompt } : {}),
+  ...(options?.enabledTools !== undefined ? { enabledTools: [...new Set(options.enabledTools.map(name => name.trim()).filter(Boolean))] } : {})
+});
+const initialSnapshot = (): AssistantSnapshot => { const session = createSession(); return { sessions: [session], activeSessionId: session.id }; };
 
-export function useAssistant(runner: AssistantRunner, storage: AssistantStorage): AssistantController {
+export function useAssistant(runner: AssistantRunner, storage: AssistantStorage, options?: UseAssistantOptions): AssistantController {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const current = useRef(snapshot);
   const [loading, setLoading] = useState(true);
@@ -50,6 +69,8 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
   const redo = useRef<{ sessionId: string; entryId: string; previousHistory: unknown[] } | null>(null);
   const runnerRef = useRef(runner);
   runnerRef.current = runner;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const save = (next: AssistantSnapshot) => {
     const data = structuredClone(next);
@@ -114,7 +135,15 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
     };
   }, [storage]);
 
-  const run = async (prompt: string, previous: ChatEntry[], attachments: ImageUpload[] = [], historyOverride?: unknown[], reuseAttachments = false, previousResponse?: ChatEntry) => {
+  const run = async (
+    prompt: string,
+    previous: ChatEntry[],
+    attachments: ImageUpload[] = [],
+    historyOverride?: unknown[],
+    reuseAttachments = false,
+    previousResponse?: ChatEntry,
+    preservedPlaceholders?: Pick<ChatEntry, 'rawContent' | 'sentContent' | 'placeholders'>
+  ) => {
     if (request.current || savingRef.current || loading || loadError) return;
     if (attachments.length && !storage.images) throw new Error('Image storage is unavailable.');
     const id = current.current.activeSessionId;
@@ -126,13 +155,58 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
     request.current = abort;
     setBusy(true);
     setExecutionError(null);
-    const user: ChatEntry = { id: crypto.randomUUID(), role: 'user', content: prompt, ...(attachments.length ? { images: attachments.map(item => item.image) } : {}) };
     const response: ChatEntry = { id: crypto.randomUUID(), role: 'assistant', content: '' };
     const updateResponse = (change: (entry: ChatEntry) => ChatEntry) => modifySession(id, session => ({ ...session, updatedAt: Date.now(), entries: session.entries.map(entry => entry.id === response.id ? change(entry) : entry) }));
     let published = false;
     const previousSnapshot = current.current;
     const savedUploads: { sessionId: string; imageId: string }[] = [];
     try {
+      const sessionBeforeRun = current.current.sessions.find(item => item.id === id);
+      let systemPromptPatch: Pick<AssistantSession, 'sentSystemPrompt' | 'systemPromptPlaceholders'> | undefined;
+      if (
+        sessionBeforeRun?.systemPrompt &&
+        sessionBeforeRun.sentSystemPrompt === undefined &&
+        !sessionBeforeRun.systemPromptPlaceholders?.length &&
+        isPlaceholdersEnabled(optionsRef.current?.placeholders, optionsRef.current?.features)
+      ) {
+        const resolvedSystem = await resolvePlaceholders(
+          sessionBeforeRun.systemPrompt,
+          optionsRef.current?.placeholders,
+          id,
+          optionsRef.current?.features,
+          'system'
+        );
+        abort.signal.throwIfAborted();
+        if (!active()) throw new Error('The active storage has changed.');
+        if (resolvedSystem.placeholders.length) {
+          systemPromptPatch = {
+            sentSystemPrompt: resolvedSystem.sentContent,
+            systemPromptPlaceholders: resolvedSystem.placeholders
+          };
+        }
+      }
+      let placeholderFields: Pick<ChatEntry, 'rawContent' | 'sentContent' | 'placeholders'> = {};
+      if (preservedPlaceholders) {
+        placeholderFields = preservedPlaceholders;
+      } else if (isPlaceholdersEnabled(optionsRef.current?.placeholders, optionsRef.current?.features)) {
+        const resolved = await resolvePlaceholders(prompt, optionsRef.current?.placeholders, id, optionsRef.current?.features, 'user');
+        abort.signal.throwIfAborted();
+        if (!active()) throw new Error('The active storage has changed.');
+        if (resolved.placeholders.length) {
+          placeholderFields = {
+            rawContent: resolved.rawContent,
+            sentContent: resolved.sentContent,
+            placeholders: resolved.placeholders
+          };
+        }
+      }
+      const user: ChatEntry = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: prompt,
+        ...placeholderFields,
+        ...(attachments.length ? { images: attachments.map(item => item.image) } : {})
+      };
       for (const attachment of reuseAttachments ? [] : attachments) {
         abort.signal.throwIfAborted();
         await storage.images!.saveImage(id, attachment.image.id, attachment.blob);
@@ -143,7 +217,7 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
       const galleryEntry = previousResponse && (previousResponse.images?.length || previousResponse.tools?.some(tool => tool.image))
         ? { content: '', images: previousResponse.images, tools: previousResponse.tools?.filter(tool => tool.image) }
         : undefined;
-      const next = { ...current.current, sessions: current.current.sessions.map(session => session.id === id ? { ...session, title: previous.length ? session.title : prompt.slice(0, 30), updatedAt: Date.now(), entries: [...previous, user, response], responseItems: historyBefore,
+      const next = { ...current.current, sessions: current.current.sessions.map(session => session.id === id ? { ...session, ...systemPromptPatch, title: previous.length || (session.title && session.title !== '新对话') ? session.title : prompt.slice(0, 30), updatedAt: Date.now(), entries: [...previous, user, response], responseItems: historyBefore,
         ...(galleryEntry ? { galleryEntries: [...(session.galleryEntries || []), galleryEntry] } : {}) } : session) };
       if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
       current.current = next;
@@ -153,8 +227,10 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
       abort.signal.throwIfAborted();
       if (!active()) throw new Error('The active storage has changed.');
       redo.current = { sessionId: id, entryId: response.id, previousHistory: historyBefore };
+      const activeSession = current.current.sessions.find(item => item.id === id)!;
       await runnerRef.current([...previous, user], {
         signal: abort.signal,
+        session: activeSession,
         history: historyBefore,
         onHistory: items => { if (active() && !abort.signal.aborted) modifySession(id, session => ({ ...session, responseItems: items,
           entries: session.entries.map(entry => entry.id === response.id ? { ...entry, responseItemCount: items.length,
@@ -243,10 +319,65 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
         return { image, blob };
       }));
       if (!mounted.current || generation.current !== targetGeneration || current.current !== snapshotBeforeLoad || request.current || savingRef.current) return;
-      await run(user.content, previous, attachments, historyBefore, true, active.entries.at(-1));
+      const preservedPlaceholders = user.placeholders?.length
+        ? {
+            rawContent: user.rawContent ?? user.content,
+            sentContent: user.sentContent,
+            placeholders: structuredClone(user.placeholders)
+          }
+        : undefined;
+      await run(user.rawContent ?? user.content, previous, attachments, historyBefore, true, active.entries.at(-1), preservedPlaceholders);
     } catch (error) {
       if (mounted.current && generation.current === targetGeneration && current.current === snapshotBeforeLoad) setExecutionError({ message: error instanceof Error ? error.message : String(error) });
     }
+  };
+
+  const startSession = async (sessionOptions?: StartSessionOptions): Promise<string | void> => {
+    if (request.current || savingRef.current) return;
+    redo.current = null;
+    const targetGeneration = generation.current;
+    let next = createSession(sessionOptions);
+    if (
+      sessionOptions?.systemPrompt &&
+      isPlaceholdersEnabled(optionsRef.current?.placeholders, optionsRef.current?.features)
+    ) {
+      const resolvedSystem = await resolvePlaceholders(
+        sessionOptions.systemPrompt,
+        optionsRef.current?.placeholders,
+        next.id,
+        optionsRef.current?.features,
+        'system'
+      );
+      if (!mounted.current || generation.current !== targetGeneration) return;
+      if (resolvedSystem.placeholders.length) {
+        next = {
+          ...next,
+          systemPrompt: resolvedSystem.rawContent,
+          sentSystemPrompt: resolvedSystem.sentContent,
+          systemPromptPlaceholders: resolvedSystem.placeholders
+        };
+      }
+    }
+    update({ sessions: [next, ...current.current.sessions], activeSessionId: next.id }, true);
+    setExecutionError(null);
+    const initial = sessionOptions?.initialPrompt?.trim();
+    if (initial && sessionOptions?.autoSend !== false) {
+      await run(sessionOptions!.initialPrompt!, []);
+    }
+    return next.id;
+  };
+
+  const setSessionTools = async (toolNames: string[] | undefined, sessionId?: string): Promise<void> => {
+    if (savingRef.current) return;
+    const targetId = sessionId ?? current.current.activeSessionId;
+    if (!current.current.sessions.some(item => item.id === targetId)) return;
+    const normalized = toolNames === undefined ? undefined : [...new Set(toolNames.map(name => name.trim()).filter(Boolean))];
+    modifySession(targetId, item => {
+      const updated: AssistantSession = { ...item, updatedAt: Date.now() };
+      if (normalized === undefined) delete updated.enabledTools;
+      else updated.enabledTools = normalized;
+      return updated;
+    }, true);
   };
 
   return {
@@ -258,14 +389,16 @@ export function useAssistant(runner: AssistantRunner, storage: AssistantStorage)
       if (active) await run(prompt, active.entries, attachments);
     },
     stop: () => request.current?.abort(),
-    newSession: async () => { if (!request.current && !savingRef.current) { redo.current = null; const next = newSession(); update({ sessions: [next, ...current.current.sessions], activeSessionId: next.id }, true); setExecutionError(null); } },
+    newSession: startSession,
+    startSession,
+    setSessionTools,
     selectSession: async id => { if (!request.current && !savingRef.current && current.current.sessions.some(item => item.id === id)) { redo.current = null; update({ ...current.current, activeSessionId: id }, true); setExecutionError(null); } },
     renameSession: async (id, title) => modifySession(id, item => ({ ...item, title, updatedAt: Date.now() }), true),
     deleteSession: async id => {
       if (request.current || savingRef.current) return;
       const targetGeneration = generation.current;
       const remaining = current.current.sessions.filter(item => item.id !== id);
-      if (!remaining.length) remaining.push(newSession());
+      if (!remaining.length) remaining.push(createSession());
       const next = { sessions: remaining, activeSessionId: current.current.activeSessionId === id ? remaining[0].id : current.current.activeSessionId };
       savingRef.current = true; setSaving(true);
       if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }

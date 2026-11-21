@@ -1564,3 +1564,133 @@ button { cursor: pointer; }
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* 增强能力演练面板（会话启动、工具选择、占位符快照） */
+.demo-workflow-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.demo-workflow-card {
+  padding: 14px 16px;
+  border: 1px solid var(--demo-border);
+  border-radius: 8px;
+  background: var(--demo-surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.demo-workflow-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.demo-workflow-card-head strong {
+  display: block;
+  font-size: 13px;
+  color: var(--demo-text-strong);
+}
+
+.demo-workflow-card-head small {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--demo-muted);
+  line-height: 1.45;
+}
+
+.demo-workflow-card textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--demo-border);
+  border-radius: 6px;
+  background: var(--demo-surface);
+  color: var(--demo-text);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.demo-workflow-tools-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demo-workflow-subhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--demo-text-strong);
+}
+
+.demo-workflow-subhead > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.demo-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--demo-muted);
+  cursor: pointer;
+}
+
+.demo-tool-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 8px;
+}
+
+.demo-tool-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--demo-border);
+  background: var(--demo-surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.demo-tool-chip.is-checked {
+  border-color: var(--demo-primary);
+  background: var(--demo-badge-bg);
+}
+
+.demo-tool-chip input[type='checkbox'] {
+  margin-top: 2px;
+  accent-color: var(--demo-primary);
+}
+
+.demo-tool-chip span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.demo-tool-chip strong {
+  font-size: 12px;
+  color: var(--demo-text-strong);
+}
+
+.demo-tool-chip small {
+  font-size: 10.5px;
+  color: var(--demo-muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}

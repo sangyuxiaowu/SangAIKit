@@ -7,7 +7,9 @@ const FEATURE_OPTIONS: { key: keyof AiFeatures; label: string; description: stri
   { key: 'quickSnippets', label: '快捷短语', description: '在助手空白状态显示快捷提问。' },
   { key: 'fontManagement', label: '字体管理', description: '提供本地字体管理与字体工具。' },
   { key: 'onlineFonts', label: '在线字体', description: '字体管理开启时，允许查询在线字体。' },
-  { key: 'backgroundRemoval', label: '抠图', description: '启用本地抠图设置及工具。' }
+  { key: 'backgroundRemoval', label: '抠图', description: '启用本地抠图设置及工具。' },
+  { key: 'placeholders', label: '占位符替换', description: '发送前将 {{占位符}} 替换为宿主实时内容并保存赋值快照。' },
+  { key: 'sessionToolPicker', label: '右上角工具设置', description: '是否在助手标题栏右上角显示自带的树形工具选择面板（宿主也可关闭后在输入工具栏插槽自定义）。' }
 ];
 
 type LimitKey = 'maxToolRounds' | 'maxImageFailures';
@@ -20,15 +22,16 @@ interface DemoIntegrationSettingsProps {
   onLimitChange: (key: LimitKey, value: number) => void;
   validImageModelCount: number;
   skillCount: number;
+  hostToolNames?: readonly string[];
   onReset: () => void;
 }
 
 export default function DemoIntegrationSettings({
   features, onFeaturesChange, maxToolRounds, maxImageFailures, onLimitChange,
-  validImageModelCount, skillCount, onReset
+  validImageModelCount, skillCount, hostToolNames, onReset
 }: DemoIntegrationSettingsProps) {
   const toolNames = [
-    'read_workspace',
+    ...(hostToolNames?.length ? hostToolNames : ['read_workspace']),
     ...(features.backgroundRemoval ? ['remove_background'] : []),
     ...(features.fontManagement ? ['list_fonts'] : []),
     ...(features.skills && skillCount ? ['skill'] : []),

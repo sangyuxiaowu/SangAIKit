@@ -9,6 +9,7 @@ declare module 'bun:test' {
     toMatchObject(expected: unknown): void;
     toBeGreaterThan(expected: number): void;
     toHaveLength(expected: number): void;
+    toHaveProperty(key: string, value?: unknown): void;
     toBeTruthy(): void;
     toBeNull(): void;
     toBeDefined(): void;

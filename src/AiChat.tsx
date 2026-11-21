@@ -4,6 +4,7 @@ import { Send, Square } from 'lucide-react';
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  sentContent?: string;
   images?: string[];
 }
 

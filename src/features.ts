@@ -5,6 +5,8 @@ export interface AiFeatures {
   fontManagement: boolean;
   onlineFonts: boolean;
   backgroundRemoval: boolean;
+  placeholders: boolean;
+  sessionToolPicker: boolean;
 }
 
 export const DEFAULT_AI_FEATURES: Readonly<AiFeatures> = {
@@ -13,7 +15,9 @@ export const DEFAULT_AI_FEATURES: Readonly<AiFeatures> = {
   quickSnippets: true,
   fontManagement: true,
   onlineFonts: true,
-  backgroundRemoval: true
+  backgroundRemoval: true,
+  placeholders: true,
+  sessionToolPicker: true
 };
 
 export function normalizeAiFeatures(value: unknown): AiFeatures {

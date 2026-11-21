@@ -2167,3 +2167,708 @@
   background: var(--ai-surface-hover);
   border-color: var(--ai-accent-border);
 }
+
+/* ==========================================================================
+   6. 会话工具面板、系统提示词横幅、占位符快照与输入工具栏插槽
+   ========================================================================== */
+.cf-ai-tools-trigger {
+  position: relative;
+  width: auto;
+  min-width: 28px;
+  padding: 0 7px;
+  gap: 4px;
+}
+
+.cf-ai-tools-count {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 4px;
+  border-radius: 5px;
+  background: var(--ai-accent-bg);
+  color: var(--ai-accent-strong);
+  border: 1px solid var(--ai-accent-border);
+}
+
+.cf-ai-tools-popover {
+  position: absolute;
+  top: 52px;
+  right: 12px;
+  z-index: 35;
+  width: min(320px, calc(100% - 24px));
+  max-height: min(380px, calc(100% - 76px));
+  border-radius: 13px;
+  border: 1px solid var(--ai-border);
+  background: var(--ai-dialog-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    0 18px 42px -10px rgba(0, 0, 0, 0.58),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: top right;
+  animation: cf-ai-popover-drop 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cf-ai-panel[data-theme='light'] .cf-ai-tools-popover {
+  background: var(--ai-surface);
+  box-shadow:
+    0 16px 36px -10px rgba(15, 23, 42, 0.18),
+    0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+@keyframes cf-ai-popover-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cf-ai-session-tools-panel {
+  flex-shrink: 0;
+  max-height: 310px;
+  padding: 10px 14px 12px;
+  background: var(--ai-subbar-bg);
+  border-bottom: 1px solid var(--ai-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: cf-ai-fade-in 0.16s ease-out;
+}
+
+.cf-ai-tools-popover > .cf-ai-session-tools-panel {
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  padding: 10px 12px 12px;
+  border-bottom: none;
+  background: transparent;
+  animation: none;
+}
+
+.cf-ai-session-tools-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cf-ai-session-tools-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ai-text);
+}
+
+.cf-ai-session-tools-title svg {
+  color: var(--ai-accent-strong);
+  flex-shrink: 0;
+}
+
+.cf-ai-session-tools-title span {
+  font-size: 10.5px;
+  color: var(--ai-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-ai-session-tools-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cf-ai-session-tools-link {
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--ai-border);
+  background: var(--ai-surface);
+  color: var(--ai-text-secondary);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cf-ai-session-tools-link:hover {
+  border-color: var(--ai-accent-border);
+  background: var(--ai-accent-bg);
+  color: var(--ai-accent-strong);
+}
+
+.cf-ai-tool-tree-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--ai-border);
+  background: var(--ai-input-bg);
+  color: var(--ai-muted);
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cf-ai-tool-tree-search:focus-within {
+  border-color: var(--ai-accent);
+  box-shadow: 0 0 0 2px var(--ai-accent-bg);
+}
+
+.cf-ai-tool-tree-search svg {
+  flex-shrink: 0;
+  color: var(--ai-subtle);
+}
+
+.cf-ai-tool-tree-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ai-text);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.cf-ai-tool-tree-search input::placeholder {
+  color: var(--ai-subtle);
+}
+
+.cf-ai-tool-tree-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.cf-ai-tool-tree-search-clear {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--ai-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cf-ai-tool-tree-search-clear:hover {
+  background: var(--ai-surface-hover);
+  color: var(--ai-text);
+}
+
+.cf-ai-tool-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 2px;
+}
+
+.cf-ai-tool-tree-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 8px;
+  font-size: 11.5px;
+  color: var(--ai-muted);
+}
+
+.cf-ai-tool-tree-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cf-ai-tool-tree-group-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 2px;
+  border-radius: 7px;
+  transition: background 0.15s ease;
+}
+
+.cf-ai-tool-tree-group-row:hover {
+  background: var(--ai-surface-hover);
+}
+
+.cf-ai-tool-tree-toggle {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ai-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cf-ai-tool-tree-toggle:hover {
+  background: var(--ai-surface);
+  color: var(--ai-text);
+}
+
+.cf-ai-tool-tree-group-check {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cf-ai-tool-tree-group-check input[type='checkbox'],
+.cf-ai-tool-tree-item input[type='checkbox'] {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  accent-color: var(--ai-accent);
+  cursor: pointer;
+}
+
+.cf-ai-tool-tree-group-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ai-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-ai-tool-tree-group-count {
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--ai-surface);
+  border: 1px solid var(--ai-border);
+  color: var(--ai-muted);
+  flex-shrink: 0;
+}
+
+.cf-ai-tool-tree-children {
+  margin-left: 11px;
+  padding-left: 12px;
+  border-left: 1px dashed var(--ai-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.cf-ai-tool-tree-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--ai-surface);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cf-ai-tool-tree-item:hover {
+  border-color: var(--ai-accent-border);
+  background: var(--ai-surface-hover);
+}
+
+.cf-ai-tool-tree-item.is-enabled {
+  border-color: var(--ai-accent-border);
+  background: var(--ai-accent-bg);
+}
+
+.cf-ai-tool-tree-item input[type='checkbox'] {
+  margin: 2px 0 0;
+}
+
+.cf-ai-tool-tree-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cf-ai-tool-tree-item-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+.cf-ai-tool-tree-item-head strong {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ai-text);
+  line-height: 1.3;
+}
+
+.cf-ai-tool-tree-item-head code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  color: var(--ai-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cf-ai-tool-tree-source {
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.cf-ai-tool-tree-source.is-host {
+  background: var(--ai-accent-bg);
+  color: var(--ai-accent-strong);
+  border: 1px solid var(--ai-accent-border);
+}
+
+.cf-ai-tool-tree-source.is-builtin {
+  background: var(--ai-surface-hover);
+  color: var(--ai-muted);
+  border: 1px solid var(--ai-border);
+}
+
+.cf-ai-panel[data-theme='light'] .cf-ai-tool-tree-source.is-builtin {
+  background: rgba(15, 23, 42, 0.05);
+  color: #475569;
+}
+
+.cf-ai-tool-tree-item-desc {
+  font-size: 10.5px;
+  color: var(--ai-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 本会话系统提示词展示卡 */
+.cf-ai-system-prompt {
+  border: 1px solid var(--ai-accent-border);
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--ai-accent-bg), var(--ai-surface));
+  overflow: hidden;
+  animation: cf-ai-fade-in 0.2s ease-out;
+}
+
+.cf-ai-system-prompt summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ai-accent-strong);
+  user-select: none;
+}
+
+.cf-ai-system-prompt summary::-webkit-details-marker {
+  display: none;
+}
+
+.cf-ai-system-prompt summary > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.cf-ai-system-prompt-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ai-muted);
+  transition: all 0.15s ease;
+}
+
+.cf-ai-system-prompt-copy:hover {
+  background: var(--ai-surface-hover);
+  border-color: var(--ai-border);
+  color: var(--ai-text);
+}
+
+.cf-ai-system-prompt-body {
+  padding: 8px 11px 10px;
+  border-top: 1px solid var(--ai-border-light);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ai-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* 用户消息内联占位符芯片与快照浮卡 */
+.cf-ai-user-text {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.75;
+}
+
+.cf-ai-placeholder-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: baseline;
+  margin: 0 2px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--ai-accent-border);
+  background: var(--ai-accent-bg);
+  color: var(--ai-accent-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cf-ai-placeholder-chip:hover {
+  border-color: var(--ai-accent);
+  background: color-mix(in srgb, var(--ai-accent) 24%, transparent);
+}
+
+.cf-ai-placeholder-chip.is-active {
+  border-color: var(--ai-accent);
+  background: var(--ai-accent);
+  color: var(--ai-accent-contrast);
+  box-shadow: 0 2px 8px var(--ai-accent-bg);
+}
+
+.cf-ai-placeholder-chip.is-unresolved {
+  border-style: dashed;
+  border-color: rgba(245, 158, 11, 0.55);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+}
+
+.cf-ai-panel[data-theme='light'] .cf-ai-placeholder-chip.is-unresolved {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.cf-ai-placeholder-snapshot {
+  margin: 6px 0 0 28px;
+  border: 1px solid var(--ai-accent-border);
+  border-radius: 11px;
+  background: var(--ai-surface);
+  overflow: hidden;
+  box-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.25);
+  animation: cf-ai-fade-in 0.16s ease-out;
+}
+
+.cf-ai-placeholder-snapshot.is-system {
+  margin: 0;
+}
+
+.cf-ai-panel[data-theme='light'] .cf-ai-placeholder-snapshot {
+  box-shadow: 0 8px 20px -8px rgba(15, 23, 42, 0.12);
+}
+
+.cf-ai-placeholder-snapshot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--ai-subbar-bg);
+  border-bottom: 1px solid var(--ai-border-light);
+}
+
+.cf-ai-placeholder-snapshot-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+}
+
+.cf-ai-placeholder-snapshot-title svg {
+  color: var(--ai-accent-strong);
+  flex-shrink: 0;
+}
+
+.cf-ai-placeholder-snapshot-title strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--ai-text);
+  font-size: 11.5px;
+}
+
+.cf-ai-placeholder-group {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--ai-accent-bg);
+  color: var(--ai-accent-strong);
+  border: 1px solid var(--ai-accent-border);
+}
+
+.cf-ai-placeholder-time {
+  font-size: 10px;
+  color: var(--ai-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-ai-placeholder-snapshot-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cf-ai-placeholder-action {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ai-muted);
+  transition: all 0.15s ease;
+}
+
+.cf-ai-placeholder-action:hover {
+  background: var(--ai-surface-hover);
+  border-color: var(--ai-border);
+  color: var(--ai-text);
+}
+
+.cf-ai-placeholder-snapshot-body {
+  margin: 0;
+  padding: 9px 11px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ai-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--ai-code-bg);
+}
+
+.cf-ai-placeholder-snapshot-footer {
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--ai-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cf-ai-placeholder-toggle-sent {
+  align-self: flex-start;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--ai-border);
+  background: var(--ai-surface-elevated);
+  color: var(--ai-text-secondary);
+  font-size: 10.5px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.cf-ai-placeholder-toggle-sent:hover {
+  border-color: var(--ai-accent-border);
+  color: var(--ai-accent-strong);
+}
+
+.cf-ai-placeholder-sent-body {
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 160px;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid var(--ai-border-light);
+  background: var(--ai-code-bg);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ai-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* 输入框上方宿主工具栏插槽 */
+.cf-ai-composer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+
+.cf-ai-composer-toolbar select,
+.cf-ai-composer-toolbar button {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid var(--ai-border);
+  background: var(--ai-surface);
+  color: var(--ai-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.cf-ai-composer-toolbar select {
+  max-width: 150px;
+  cursor: pointer;
+}
+
+.cf-ai-composer-toolbar select:hover:not(:disabled),
+.cf-ai-composer-toolbar button:hover:not(:disabled) {
+  border-color: var(--ai-accent-border);
+  background: var(--ai-accent-bg);
+  color: var(--ai-text);
+}
+
+.cf-ai-composer-toolbar select:disabled,
+.cf-ai-composer-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

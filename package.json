@@ -1,6 +1,6 @@
 {
   "name": "sang-ai-kit",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "license": "Apache-2.0",
   "type": "module",
   "repository": {
@@ -32,6 +32,9 @@
     "./skills": "./src/skills.ts",
     "./features": "./src/features.ts",
     "./built-in-tools": "./src/builtInTools.ts",
+    "./placeholders": "./src/placeholders.ts",
+    "./tool-registry": "./src/toolRegistry.ts",
+    "./session-tool-tree": "./src/SessionToolTree.tsx",
     "./skill-settings": "./src/SkillSettings.tsx",
     "./image-generation": "./src/image-generation/index.ts",
     "./image-models": "./src/image-generation/models.ts",
